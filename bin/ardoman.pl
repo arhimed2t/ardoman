@@ -7,6 +7,8 @@ use version; our $VERSION = version->declare("v0.0.1");
 
 use English qw( -no_match_vars );
 use Data::Dumper;
+$Data::Dumper::Deepcopy = 1;
+$Data::Dumper::Sortkeys = 1;
 use Readonly;
 use Carp qw{ carp confess };
 use Cwd qw{};
@@ -32,14 +34,12 @@ use lib split /::/smx, $ENV{'ARDO_DIRS_INC'};
 
 use Ardoman::Constants qw{ :all };
 use Ardoman::Configuration;
-
-#use Ardoman::Docker;
+use Ardoman::Docker;
 
 # I limited in size of program, so let Euclid to process arguments logic.
 # This module takes POD, parse it and process arguments at start.
 # See arguments definitions and descriptions in POD section below.
 use Getopt::Euclid qw( :minimal_keys );
-print "ARGV:" . Dumper \%ARGV;
 
 use Log::Log4perl;
 use Log::Log4perl::Level;
@@ -71,11 +71,16 @@ if ($ARGV{'confdir'}) {
     $conf->load(application => $ARGV{'application'}, $data->{'application'});
 }
 
-
-
 if ($ARGV{'show'}) {
     print Dumper $data;
 }
+
+my $api    = Ardoman::Docker->new($data->{'endpoint'});
+my $action = $ARGV{'action'};
+if ($api && $action && $api->can($action)) {
+    $api->$action($data->{'application'});
+}
+
 if ($ARGV{'save'}) {
     $conf->save(endpoint    => $ARGV{'endpoint'},    $data->{'endpoint'});
     $conf->save(application => $ARGV{'application'}, $data->{'application'});
@@ -84,7 +89,6 @@ if ($ARGV{'purge'}) {
     $conf->purge(endpoint    => $ARGV{'endpoint'});
     $conf->purge(application => $ARGV{'application'});
 }
-print "data:" . Dumper $data;
 
 sub update_data {
     my($type, $target, $source) = @_;
@@ -137,40 +141,51 @@ of configs.
 
 Name of connection setting to docker endpoint.
 Incorporates such option as:
-  username
-  password
-  email
-  serveraddress
-This also name for oprating with saved configuration: save, load, delete.
-So it must bu uniq, otherwise in save case connected option will overwritten.
+    host
+    tls_verify
+    ca_file
+    cert_file
+    key_file
+This also name for operating with saved configuration: save, load, purge.
+So it must be uniq, otherwise in save case endpoint options
+will be overwritten.
 
-=item --username=<username>
+=item --host=<host>
 
-Username
+Daemon socket(s) to connect to.
+Default to $ENV{DOCKER_HOST}
 
-=item --password=<password>
+=item --tls_verify
 
-Password
+Use TLS and verify the remote.
+Default to $ENV{DOCKER_TLS_VERIFY}
 
-=item --email=<email>
+=item --ca_file=<ca_file>
 
-email
+Trust certs signed only by this CA.
+Path to ca cert file, default to $ENV{DOCKER_CERT_PATH}/ca.pem
 
-=item --serveraddress=<serveraddress>
+=item --cert_file=<cert_file>
 
-serveraddress
+Path to TLS certificate file.
+Path to client cert file, default to $ENV{DOCKER_CERT_PATH}/cert.pem
+
+=item --key_file=<key_file>
+
+Path to TLS key file.
+Path to client key file, default to $ENV{DOCKER_CERT_PATH}/key.pem
 
 =item --save
 
-save 
+Command to save endpoint's and application's configurations into database.
 
 =item --purge
 
-purge
+Command to purge both configurations after use (or may be after save also).
 
 =item --show
 
-show
+Command to show configurations before connect to endpoint.
 
 =back
 

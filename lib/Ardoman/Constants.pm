@@ -9,6 +9,8 @@ use version; our $VERSION = version->declare("v0.0.1");
 
 use English qw( -no_match_vars );
 use Data::Dumper;
+$Data::Dumper::Deepcopy = 1; 
+$Data::Dumper::Sortkeys = 1;
 use Readonly;
 use Carp qw{ carp confess };
 use Cwd qw{};
@@ -39,7 +41,7 @@ our %EXPORT_TAGS = ();
 
 $EXPORT_TAGS{'data'} = [qw{ $DATA_KEYS }];
 Readonly our $DATA_KEYS => {
-    endpoint    => [qw{ username password email serveraddress }],
+    endpoint    => [qw{ host tls_verify ca_file cert_file key_file }],
     application => [qw{ image name ports command }],
 };
 

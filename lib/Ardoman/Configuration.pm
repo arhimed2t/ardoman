@@ -9,6 +9,8 @@ use version; our $VERSION = version->declare("v0.0.1");
 
 use English qw( -no_match_vars );
 use Data::Dumper;
+$Data::Dumper::Deepcopy = 1;
+$Data::Dumper::Sortkeys = 1;
 use Carp qw{ carp confess };
 use Cwd qw{};
 use File::Spec;

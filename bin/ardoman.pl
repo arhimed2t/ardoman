@@ -3,29 +3,59 @@
 use strict;
 use warnings;
 
+use version; our $VERSION = version->declare("v0.0.1");
+
 use English qw( -no_match_vars );
 use Data::Dumper;
 use Readonly;
 use Carp qw{ carp confess };
-use File::Path qw{ make_path };
-use File::Slurp qw{ slurp };
-use JSON;
+use Cwd qw{};
+use File::Spec;
+
+# Calculate path to our libraries
+BEGIN {
+    my @dirs = File::Spec->splitdir(Cwd::abs_path($PROGRAM_NAME));
+    pop @dirs; # Cut executable name
+    pop @dirs; # Cut 'bin' dir
+    $ENV{'ARDO_WORKDIR'} = File::Spec->catdir(@dirs); ## no critic (Variables::RequireLocalizedPunctuationVars)
+    my %inc_hash = map { $_ => 1 } @INC;
+    my @inc_dirs = ();
+    foreach my $dir_suffix (qw{ lib local/lib }) {
+        my $inc_dir = "$ENV{'ARDO_WORKDIR'}/$dir_suffix";
+        if (-d $inc_dir && -r _ && !$inc_hash{$inc_dir}) {
+            push @inc_dirs, $inc_dir;
+        }
+    }
+    $ENV{'ARDO_DIRS_INC'} = join '::', @inc_dirs;
+} # end BEGIN
+use lib split /::/smx, $ENV{'ARDO_DIRS_INC'};
+
+use Ardoman::Constants qw{ :all };
+use Ardoman::Configuration;
+
+#use Ardoman::Docker;
 
 # I limited in size of program, so let Euclid to process arguments logic.
 # This module takes POD, parse it and process arguments at start.
-# Arguments definitions and descriptions in POD section below.
+# See arguments definitions and descriptions in POD section below.
 use Getopt::Euclid qw( :minimal_keys );
 print "ARGV:" . Dumper \%ARGV;
 
-Readonly my $YES   => 1;
-Readonly my $NO    => 0;
-Readonly my $OK    => 1;
-Readonly my $ERROR => q{};
+use Log::Log4perl;
+use Log::Log4perl::Level;
+Log::Log4perl->init_once(\$LOG4PERL_DEFAULT);
 
-Readonly my $DATA_KEYS => {
-    endpoint    => [qw{ username password email serveraddress }],
-    application => [qw{ image name ports command }],
-};
+if ($ARGV{log_conffile}) {
+    Log::Log4perl->init($ARGV{log_conffile}); # Note: force reinit logger
+}
+if ($ARGV{log_level} && Log::Log4perl::Level::is_valid($ARGV{log_level})) {
+    my $level = Log::Log4perl::Level::to_priority($ARGV{log_level});
+    Log::Log4perl->get_logger($ROOT_LOGGER)->level($level);
+}
+if ($ARGV{debug}) {
+    my $level = Log::Log4perl::Level::to_priority('ALL');
+    Log::Log4perl->get_logger($ROOT_LOGGER)->level($level);
+}
 
 my $data = {
     endpoint    => {}, # Here we'll save all data about endpoint
@@ -35,77 +65,26 @@ my $data = {
 update_data(endpoint    => $data->{'endpoint'},    \%ARGV);
 update_data(application => $data->{'application'}, \%ARGV);
 
+my $conf = Ardoman::Configuration->new($ARGV{'confdir'});
 if ($ARGV{'confdir'}) {
-    configuration(load => $data);
+    $conf->load(endpoint    => $ARGV{'endpoint'},    $data->{'endpoint'});
+    $conf->load(application => $ARGV{'application'}, $data->{'application'});
 }
-if ($ARGV{'confdir'} && $ARGV{'save'}) {
-    configuration(save => $data);
+
+
+
+if ($ARGV{'show'}) {
+    print Dumper $data;
 }
-if ($ARGV{'confdir'} && $ARGV{'purge'}) {
-    configuration(purge => $data);
+if ($ARGV{'save'}) {
+    $conf->save(endpoint    => $ARGV{'endpoint'},    $data->{'endpoint'});
+    $conf->save(application => $ARGV{'application'}, $data->{'application'});
+}
+if ($ARGV{'purge'}) {
+    $conf->purge(endpoint    => $ARGV{'endpoint'});
+    $conf->purge(application => $ARGV{'application'});
 }
 print "data:" . Dumper $data;
-
-sub configuration {
-    my($action, $data) = @_;
-    foreach my $type (keys %{$DATA_KEYS}) {
-        my $conf_dir = "$ARGV{'confdir'}/${type}s";
-        if (!-d $conf_dir) { make_path($conf_dir); }
-        confess('Cannot work with confdir') if !-d $conf_dir || !-w _;
-
-        next if !$ARGV{$type};
-        my $fname = "$conf_dir/$ARGV{$type}.json";
-
-        if ($action eq 'load') {
-            load_json($type, $data->{$type}, $fname);
-        }
-        elsif ($action eq 'save') {
-            save_json($type, $fname, $data->{$type});
-        }
-        elsif ($action eq 'purge') {
-            unlink $fname or carp("Cannot del files: $OS_ERROR");
-        }
-    }
-    return $OK;
-} # end sub read_configuration
-
-sub load_json {
-    my($type, $target, $fname) = @_;
-
-    if (open my $fh, '<', $fname) {
-        my $json_data = {};
-        my $json_opts = { relaxed => $YES };
-        my $json_text = slurp($fh, { err_mode => 'carp' });
-        close $fh or carp("Cannot close $type config: $OS_ERROR");
-
-        if (!eval { $json_data = from_json($json_text, $json_opts) }) {
-            carp("Error parsing $type configuration: $EVAL_ERROR");
-            return $ERROR;
-        }
-        update_data($type, $target, $json_data);
-    }
-    return $OK;
-} # end sub read_json_config
-
-sub save_json {
-    my($type, $fname, $data) = @_;
-
-    if (!open my $fh, '>', $fname) {
-        carp("Error opening for save $type config: $OS_ERROR");
-    }
-    else {
-        my $json_opts = { pretty => $YES };
-        my $json_text = q{};
-        if (!eval { $json_text = to_json($data, $json_opts) }) {
-            carp("Error coding $type configuration: $EVAL_ERROR");
-            return $ERROR;
-        }
-        print $fh $json_text;
-        close $fh or carp("Cannot close $type config: $OS_ERROR");
-    }
-
-    return $OK;
-} # end sub read_json_config
 
 sub update_data {
     my($type, $target, $source) = @_;
@@ -122,13 +101,11 @@ __END__
 
 =head1 NAME
 
-<application name> – <One-line description of application's purpose>
+ardoman – Arhimed's Docker Manager
 
 =head1 VERSION
 
-The initial template usually just has:
-
-This documentation refers to <application name> version 0.0.1.
+This documentation refers to ardoman version 0.0.1.
 
 =head1 USAGE
 
@@ -190,6 +167,10 @@ save
 =item --purge
 
 purge
+
+=item --show
+
+show
 
 =back
 

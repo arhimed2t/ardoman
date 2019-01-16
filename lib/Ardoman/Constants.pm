@@ -58,6 +58,38 @@ Readonly our $NO    => 0;
 Readonly our $TRUE  => 1;
 Readonly our $FALSE => $EMPTY;
 
+$EXPORT_TAGS{'reftypes'} = [ qw{
+      $NOTREF    $SCALAR    $ARRAY      $HASH
+      $CODE      $REF       $GLOB       $LVALUE
+      $FORMAT    $IO        $VSTRING    $REGEXP
+      $REGEXP_RT
+      }
+];
+
+Readonly our $NOTREF    => $EMPTY;
+Readonly our $SCALAR    => 'SCALAR';
+Readonly our $ARRAY     => 'ARRAY';
+Readonly our $HASH      => 'HASH';
+Readonly our $CODE      => 'CODE';
+Readonly our $REF       => 'REF';
+Readonly our $GLOB      => 'GLOB';
+Readonly our $LVALUE    => 'LVALUE';
+Readonly our $FORMAT    => 'FORMAT';
+Readonly our $IO        => 'IO';
+Readonly our $VSTRING   => 'VSTRING';
+Readonly our $REGEXP    => 'Regexp';
+Readonly our $REGEXP_RT => 'REGEXP'; # What returns by Scalar::Util(reftype)
+
+$EXPORT_TAGS{'caller'} = [ qw{
+      $CALLER_PACKAGE $CALLER_SUBROUTINE $CALLER_SUB $CALLER_WANT_ARRAY
+      }
+];
+
+Readonly our $CALLER_PACKAGE    => 0;
+Readonly our $CALLER_SUBROUTINE => 3;
+Readonly our $CALLER_SUB        => 3;
+Readonly our $CALLER_WANT_ARRAY => 5;
+
 $EXPORT_TAGS{'log'} = [qw{ $ROOT_LOGGER $LOG4PERL_DEFAULT }];
 Readonly our $ROOT_LOGGER => $EMPTY;
 Readonly our $LOG4PERL_DEFAULT => <<'LOG4PERL_DEFAULT';

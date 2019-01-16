@@ -75,10 +75,12 @@ if ($ARGV{'show'}) {
     print Dumper $data;
 }
 
+my $result = $EMPTY;
 my $api    = Ardoman::Docker->new($data->{'endpoint'});
 my $action = $ARGV{'action'};
+
 if ($api && $action && $api->can($action)) {
-    $api->$action($data->{'application'});
+    $result = $api->$action($data->{'application'});
 }
 
 if ($ARGV{'save'}) {
@@ -89,6 +91,8 @@ if ($ARGV{'purge'}) {
     $conf->purge(endpoint    => $ARGV{'endpoint'});
     $conf->purge(application => $ARGV{'application'});
 }
+
+print "Done: $result\n";
 
 sub update_data {
     my($type, $target, $source) = @_;
@@ -186,6 +190,27 @@ Command to purge both configurations after use (or may be after save also).
 =item --show
 
 Command to show configurations before connect to endpoint.
+
+=item --action=<action>
+
+action
+
+=item --ports=<ports>
+
+ports
+
+=item --name=<name>
+
+name
+
+=item --application=<application>
+
+name
+
+=item --image=<image>
+
+name
+
 
 =back
 

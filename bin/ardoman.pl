@@ -10,7 +10,6 @@ use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
 
-use Ardoman::Constants qw{ :all };
 use Ardoman::Configuration;
 use Ardoman::Docker;
 

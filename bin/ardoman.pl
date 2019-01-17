@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use version; our $VERSION = version->declare("v0.0.1");
+use version; our $VERSION = version->declare('v0.0.1');
 
 use English qw( -no_match_vars );
 use Data::Dumper;
@@ -50,7 +50,7 @@ if ($ARGV{'confdir'}) {
 }
 
 if ($ARGV{'show'}) {
-    print Dumper $data;
+    print 'DATA:' . Dumper $data; ## no critic (InputOutput::RequireCheckedSyscalls)
 }
 
 if ($ARGV{'save'}) {
@@ -71,7 +71,14 @@ if ($ARGV{'purge'}) {
     $conf->purge(application => $ARGV{'application'});
 }
 
-print "Done: $result\n";
+if ($result) {
+    print "Done: $result\n"; ## no critic (InputOutput::RequireCheckedSyscalls)
+    exit 0;
+}
+else {
+    print "ERROR\n"; ## no critic (InputOutput::RequireCheckedSyscalls)
+    exit 1;
+}
 
 sub update_data {
     my($type, $target, $source) = @_;
@@ -79,6 +86,7 @@ sub update_data {
     foreach my $opt_name (@{ $DATA_KEYS->{$type} }) {
         $target->{$opt_name} //= $source->{$opt_name};
     }
+    return $OK;
 }
 
 #__DATA__
@@ -100,15 +108,32 @@ This documentation refers to ardoman version 0.0.1.
 # This section will be as far as many users ever read,
 # so make it as educational and exemplary as possible.
 
-=head1 REQUIRED ARGUMENTS
 
-A complete list of every argument that must appear on the command line.
-when the application is invoked, explaining what each of them does, any
-restrictions on where each one may appear (i.e., flags that must appear
-before or after filenames), and how the various arguments and options
-may interact (e.g., mutual exclusions, required combinations, etc.)
-If all of the application's arguments are optional, this section
-may be omitted entirely.
+
+    PERL5LIB=lib:local/lib bin/ardoman.pl \
+        --confdir config \
+        --endpoint localhost \
+        --host localhost:2375 \
+        --name tomcat \
+        --application tomcat \
+        --action deploy \
+        --image tomcat \
+        --check_proc java \
+        --ports 8080:8080 \
+        --check_delay 3 \
+        --check_url http://127.0.0.1:8080/ \
+        --save
+
+    PERL5LIB=lib:local/lib bin/ardoman.pl \
+        --confdir config \
+        --endpoint localhost \
+        --name tomcat1 \
+        --application tomcat \
+        --action deploy \
+        --ports 8081:8080 \
+        --check_delay 3 \
+        --check_url http://127.0.0.1:8081/
+
 
 =head1 OPTIONS
 
@@ -208,6 +233,39 @@ name
 
 name
 
+=item --check_proc [=] <check_proc>
+
+name
+
+=for Euclid:
+    repeatable
+
+=item --check_url [=] <check_url>
+
+name
+
+=for Euclid:
+    repeatable
+
+
+=item --check_delay [=] <check_delay>
+
+=for Euclid:
+    check_delay.type: integer
+
+name
+
+=item --debug
+
+name
+
+=item --log_level [=] <log_level>
+
+name
+
+=item --log_conffile [=] <log_conffile>
+
+name
 
 =back
 
@@ -218,19 +276,43 @@ May include numerous subsections (i.e., =head2, =head3, etc.).
 
 =head1 DIAGNOSTICS
 
-A list of every error and warning message that the application can generate
-(even the ones that will "never happen"), with a full explanation of each
-problem, one or more likely causes, and any suggested remedies. If the
-application generates exit status codes (e.g., under Unix), then list the exit
-status associated with each error.
+The program supports logging with Log::Log4perl. By default, logging is
+disabled. You can enable all log messages by setting the argument "--debug".
+
+You can also set a certain level of output messages with the argument
+"--log_level".  As a value, you should specify in the form of a string a real
+logging level used by Log::Log4perl.
+
+For more flexibility, you can specify the Log::Log4perl settings file with the
+"--log_confile" argument.
+
+For run test, use:
+
+    PERL5LIB=t/lib:lib:local/lib prove
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-A full explanation of any configuration system(s) used by the application,
-including the names and locations of any configuration files, and the
-meaning of any environment variables or properties that can be set. These
-descriptions must also include details of any configuration language used.
-(See also “Configuration Files” in Chapter 19.)
+Since it was necessary to write quickly and briefly, I chose to save the
+configuration in files in the "JSON" format. I also decided that it would be
+convenient to separate the configuration of the endpoint and the application.
+This allows us to deploy one application to multiple endpoints and vice versa
+to deploy different applications to one endpoint.
+
+Therefore, the argument "--confdir" to the program is the directory where the
+configuration files will be located.  For applications in the "applications"
+folder, for endpoints in the "endpoints" folder. Work with the configuration
+is carried out regardless of the action specified by the argument "action".
+When specifying the argument to the program "--confdir", an automatic loading
+of the saved configurations from the corresponding files occurs. However,
+command line agruments of course takes precedence and overwrite data from
+configurations. 
+
+When specifying the "--save" argument after connecting the saved configuration
+with the command line arguments, the program saves the data in a file.
+
+If the "purge" argument is also specified (or only), configuration files are
+deleted at the last stage, before exiting the program.
+
 
 
 

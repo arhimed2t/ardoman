@@ -5,7 +5,7 @@ package Ardoman::Configuration;
 use strict;
 use warnings;
 
-use version; our $VERSION = version->declare("v0.0.1");
+use version; our $VERSION = version->declare('v0.0.1');
 
 use English qw( -no_match_vars );
 use Data::Dumper;
@@ -37,7 +37,7 @@ sub _check_dirs {
     if (caller ne __PACKAGE__) {
         $log->logconfess('Private function!');
     }
-    return $OK if !$self->{'_dir'};      # Functionality disabled
+    return $OK if !$self->{'_dir'}; # Functionality disabled
     my $dir = $self->{'_dir'};
 
     foreach my $type (keys %{$DATA_KEYS}) {
@@ -82,7 +82,6 @@ sub load {
         my $json_text = slurp($fh, { err_mode => 'quiet' });
         if (!defined $json_text) {
             confess("Cannot read $type config");
-            return $ERROR;
         }
         close $fh or carp("Cannot close $type config: $OS_ERROR");
 
@@ -117,7 +116,7 @@ sub save {
             $log->error("Error coding $type configuration: $EVAL_ERROR");
             return $ERROR;
         }
-        if (!print $fh $json_text) {
+        if (!print {$fh} $json_text) {
             $log->error("Error saving $type configuration");
         }
         close $fh or carp("Cannot close $type config: $OS_ERROR");

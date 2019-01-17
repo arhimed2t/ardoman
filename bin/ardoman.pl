@@ -288,7 +288,7 @@ For more flexibility, you can specify the Log::Log4perl settings file with the
 
 For run test, use:
 
-    PERL5LIB=t/lib:lib:local/lib prove
+    PERL5LIB=t/lib:lib:local/lib prove -r -v
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

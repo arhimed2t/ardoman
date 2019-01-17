@@ -1,0 +1,40 @@
+{
+   "abstract" : "Suite of Perl modules to interact with Docker  ",
+   "author" : [
+      "Francisco Maseda <frmadem@gmail.com>",
+      "Javier Gomez <alambike@gmail.com>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Module::Build version 0.4224",
+   "license" : [
+      "unknown"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "Eixo-Docker",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc"
+      ]
+   },
+   "prereqs" : {
+      "runtime" : {
+         "recommends" : {
+            "HTTP::Server::Simple::CGI" : "0"
+         },
+         "requires" : {
+            "Eixo::Base" : 1,
+            "Eixo::Rest" : 1,
+            "JSON" : 2.5,
+            "Net::HTTP" : 6.06,
+            "perl" : 5.008001
+         }
+      }
+   },
+   "release_status" : "stable",
+   "version" : "1.211",
+   "x_serialization_backend" : "JSON::PP version 2.27400_02"
+}

@@ -110,7 +110,7 @@ This documentation refers to ardoman version 0.0.1.
 
 
 
-    PERL5LIB=lib:local/lib bin/ardoman.pl \
+    PERL5LIB=lib:local/lib/perl5 bin/ardoman.pl \
         --confdir config \
         --endpoint localhost \
         --host localhost:2375 \
@@ -124,7 +124,7 @@ This documentation refers to ardoman version 0.0.1.
         --check_url http://127.0.0.1:8080/ \
         --save
 
-    PERL5LIB=lib:local/lib bin/ardoman.pl \
+    PERL5LIB=lib:local/lib/perl5 bin/ardoman.pl \
         --confdir config \
         --endpoint localhost \
         --name tomcat1 \
@@ -288,7 +288,7 @@ For more flexibility, you can specify the Log::Log4perl settings file with the
 
 For run test, use:
 
-    PERL5LIB=t/lib:lib:local/lib prove -r -v
+    PERL5LIB=t/lib:lib:local/lib/perl5 prove -r -v
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

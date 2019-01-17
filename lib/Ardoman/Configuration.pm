@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 package Ardoman::Configuration;
 
 use strict;
@@ -11,130 +9,101 @@ use English qw( -no_match_vars );
 use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
-use Carp qw{ carp confess };
+use Carp;
 
 use File::Path qw{ make_path };
+use File::Spec;
 use File::Slurp qw{ slurp };
 use JSON;
 use List::Util qw{ none };
-use Log::Log4perl;
+use Readonly;
 
-use Ardoman::Constants qw{ :all };
-
-Log::Log4perl->init_once(\$LOG4PERL_DEFAULT);
-my $log = Log::Log4perl->get_logger(__PACKAGE__);
+Readonly my %VALID_DATA => (
+    endpoint    => [qw{ host tls_verify ca_file cert_file key_file }],
+    application => [
+        qw{ image name id ports cmd env
+            check_proc check_url check_delay }
+    ],
+);
+Readonly my @VALID_DIRS => map { $_ . 's' } keys %VALID_DATA;
 
 sub new {
-    my($class, $conf_dir) = @_;
-    my $self = bless { _dir => $conf_dir }, $class;
+    my($class, $root_conf_dir) = @_;
+    my $self = bless { dir => undef }, $class;
 
-    $self->_check_dirs();
+    if ($root_conf_dir) {
+        foreach my $type (@VALID_DIRS) {
+            my $conf_dir = File::Spec->catdir($root_conf_dir, $type);
+            if (!-d $conf_dir) {
+                make_path($conf_dir); # Make it recursively
+            }
+            if (!-d $conf_dir || !-w _) {
+                croak("Cannot work with confdir: $conf_dir");
+            }
+        }
+    }
+
+    if (-d $root_conf_dir && -w _) {
+        $self->{'dir'} = $root_conf_dir;
+    }
+
     return $self;
 }
 
-sub _check_dirs {
-    my $self = shift;
-    if (caller ne __PACKAGE__) {
-        $log->logconfess('Private function!');
-    }
-    return $OK if !$self->{'_dir'}; # Functionality disabled
-    my $dir = $self->{'_dir'};
-
-    foreach my $type (keys %{$DATA_KEYS}) {
-        my $conf_dir = "$dir/${type}s";
-        if (!-d $conf_dir) { make_path($conf_dir); }
-        if (!-d $conf_dir || !-w _) {
-            $log->error("Cannot work with confdir: $conf_dir");
-            return $ERROR;
-        }
-    }
-
-    return $OK;
-} # end sub _check_dirs
-
-sub _validate {
-    my($type) = @_;
-    if (caller ne __PACKAGE__) {
-        $log->logconfess('Private function!');
-    }
-
-    if (none { $type eq $_ } keys %{$DATA_KEYS}) {
-        $log->logconfess("Wrong type of config: $type");
-    }
-    return $OK;
-} # end sub _validate
-
 sub load {
     my($self, $type, $name, $target) = @_;
-    return $OK    if !$self->{'_dir'};      # Functionality disabled
-    return $ERROR if !$name;                # Name not specified - skip
-    return $ERROR if !$self->_check_dirs(); # Not able to read/write
-    return $ERROR if !_validate($type);     # If not valid - die inside
+    return if !$self->{'dir'}; # Functionality disabled
+    return if !$name;          # Name not specified - skip
+    croak("Wrong config type: $type") if none { $type eq $_ } @VALID_DIRS;
 
-    my $full_path = "$self->{'_dir'}/${type}s/$name.json";
-    if (!open my $fh, '<', $full_path) {
-        $log->warn("Cannot open $type config: $OS_ERROR");
-        return $ERROR;
+    my $full_path = File::Spec->catfile($self->{'dir'}, $type, "$name.json");
+
+    my $json_opts = { relaxed => 1 };
+    my $json_data = {};
+    my $json_text = slurp($full_path, { err_mode => 'quiet' });
+    return if !$json_text; # Maybe read error NOTE here it is not critical
+
+    if (!eval { $json_data = from_json($json_text, $json_opts) }) {
+        croak("Error parsing $type configuration: $EVAL_ERROR");
     }
-    else {
-        my $json_opts = { relaxed => $YES };
-        my $json_data = {};
-        my $json_text = slurp($fh, { err_mode => 'quiet' });
-        if (!defined $json_text) {
-            confess("Cannot read $type config");
-        }
-        close $fh or carp("Cannot close $type config: $OS_ERROR");
 
-        if (!eval { $json_data = from_json($json_text, $json_opts) }) {
-            carp("Error parsing $type configuration: $EVAL_ERROR");
-            return $ERROR;
-        }
-        foreach my $opt_name (@{ $DATA_KEYS->{$type} }) {
-            $target->{$opt_name} //= $json_data->{$opt_name};
-        }
-    } # end else [ if (!open my $fh, '<',...)]
-
-    return $OK;
+    return $json_data;
 } # end sub load
 
 sub save {
     my($self, $type, $name, $data) = @_;
-    return $OK    if !$self->{'_dir'};      # Functionality disabled
-    return $ERROR if !$name;                # Name not specified - skip
-    return $ERROR if !$self->_check_dirs(); # Not able to read/write
-    return $ERROR if !_validate($type);     # If not valid - die inside
+    return if !$self->{'dir'}; # Functionality disabled
+    return if !$name;          # Name not specified - skip
+    croak("Wrong config type: $type") if none { $type eq $_ } @VALID_DIRS;
 
-    my $full_path = "$self->{'_dir'}/${type}s/$name.json";
-    if (!open my $fh, '>', $full_path) {
-        $log->error("Error opening for save $type config: $OS_ERROR");
-        return $ERROR;
+    my $json_opts = { pretty => 1 };
+    my $json_text = q{};
+    if (!eval { $json_text = to_json($data, $json_opts) }) {
+        croak("Error coding $type configuration: $EVAL_ERROR");
     }
-    else {
-        my $json_opts = { pretty => $YES };
-        my $json_text = q{};
-        if (!eval { $json_text = to_json($data, $json_opts) }) {
-            $log->error("Error coding $type configuration: $EVAL_ERROR");
-            return $ERROR;
-        }
-        if (!print {$fh} $json_text) {
-            $log->error("Error saving $type configuration");
-        }
-        close $fh or carp("Cannot close $type config: $OS_ERROR");
-    } # end else [ if (!open my $fh, '>',...)]
 
-    return $OK;
+    my $full_path = File::Spec->catfile($self->{'dir'}, $type, "$name.json");
+    my $fh;
+    if (!open $fh, '>', $full_path) {
+        croak("Error opening for save $type config: $OS_ERROR");
+    }
+    if (!print {$fh} $json_text) {
+        croak("Error saving $type configuration");
+    }
+    close $fh or croak("Cannot close $type config: $OS_ERROR");
+
+    return;
 } # end sub save
 
 sub purge {
     my($self, $type, $name) = @_;
-    return $OK    if !$self->{'_dir'};      # Functionality disabled
-    return $ERROR if !$name;                # Name not specified - skip
-    return $ERROR if !$self->_check_dirs(); # Not able to read/write
-    return $ERROR if !_validate($type);     # If not valid - die inside
+    return if !$self->{'dir'}; # Functionality disabled
+    return if !$name;          # Name not specified - skip
+    croak("Wrong config type: $type") if none { $type eq $_ } @VALID_DIRS;
 
-    my $full_path = "$self->{'_dir'}/${type}s/$name.json";
+    my $full_path = File::Spec->catfile($self->{'dir'}, $type, "$name.json");
     unlink $full_path;
 
-    return $OK;
+    return;
 } # end sub purge
 

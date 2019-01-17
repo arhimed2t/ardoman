@@ -9,6 +9,7 @@ use English qw( -no_match_vars );
 use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
+use Readonly;
 
 use Ardoman::Configuration;
 use Ardoman::Docker;
@@ -18,77 +19,77 @@ use Ardoman::Docker;
 # See arguments definitions and descriptions in POD section below.
 use Getopt::Euclid qw( :minimal_keys );
 
-use Log::Log4perl;
-use Log::Log4perl::Level;
-Log::Log4perl->init_once(\$LOG4PERL_DEFAULT);
-
-if ($ARGV{log_conffile}) {
-    Log::Log4perl->init($ARGV{log_conffile}); # Note: force reinit logger
-}
-if ($ARGV{log_level} && Log::Log4perl::Level::is_valid($ARGV{log_level})) {
-    my $level = Log::Log4perl::Level::to_priority($ARGV{log_level});
-    Log::Log4perl->get_logger($ROOT_LOGGER)->level($level);
-}
-if ($ARGV{debug}) {
-    my $level = Log::Log4perl::Level::to_priority('ALL');
-    Log::Log4perl->get_logger($ROOT_LOGGER)->level($level);
-}
+Readonly my $DATA_KEYS => {
+    endpoint    => [qw{ host tls_verify ca_file cert_file key_file }],
+    application => [
+        qw{ image name id ports cmd env
+            check_proc check_url check_delay }
+    ],
+};
 
 my $data = {
     endpoint    => {}, # Here we'll save all data about endpoint
     application => {}, # And here about application
 };
 
-update_data(endpoint    => $data->{'endpoint'},    \%ARGV);
-update_data(application => $data->{'application'}, \%ARGV);
+my $endpoint_name    = $ARGV{'endpoint'};
+my $application_name = $ARGV{'application'};
+
+#############################################################################
+# Start REAL work
+
+update_data(endpoint    => \%ARGV, $data->{'endpoint'});
+update_data(application => \%ARGV, $data->{'application'});
 
 my $conf = Ardoman::Configuration->new($ARGV{'confdir'});
+
+# By default - load
 if ($ARGV{'confdir'}) {
-    $conf->load(endpoint    => $ARGV{'endpoint'},    $data->{'endpoint'});
-    $conf->load(application => $ARGV{'application'}, $data->{'application'});
-}
+    update_data(
+        endpoint => $conf->load(endpoint => $endpoint_name),
+        $data->{'endpoint'},
+    );
+    update_data(
+        application => $conf->load(application => $application_name}),
+        $data->{'application'},
+    );
+} # end if ($ARGV{'confdir'})
 
 if ($ARGV{'show'}) {
-    print 'DATA:' . Dumper $data; ## no critic (InputOutput::RequireCheckedSyscalls)
+    print 'DATA:' . Dumper($data);
 }
 
 if ($ARGV{'save'}) {
-    $conf->save(endpoint    => $ARGV{'endpoint'},    $data->{'endpoint'});
-    $conf->save(application => $ARGV{'application'}, $data->{'application'});
+    $conf->save(endpoint    => $endpoint_name,    $data->{'endpoint'});
+    $conf->save(application => $application_name, $data->{'application'});
 }
 
-my $result = $EMPTY;
+if ($ARGV{'purge'}) {
+    $conf->purge(endpoint    => $endpoint_name);
+    $conf->purge(application => $application_name);
+}
+
 my $api    = Ardoman::Docker->new($data->{'endpoint'});
 my $action = $ARGV{'action'};
 
 if ($api && $action && $api->can($action)) {
-    $result = $api->$action($data->{'application'});
+    print $api->$action($data->{'application'});
 }
 
-if ($ARGV{'purge'}) {
-    $conf->purge(endpoint    => $ARGV{'endpoint'});
-    $conf->purge(application => $ARGV{'application'});
-}
+exit 0;
 
-if ($result) {
-    print "Done: $result\n"; ## no critic (InputOutput::RequireCheckedSyscalls)
-    exit 0;
-}
-else {
-    print "ERROR\n"; ## no critic (InputOutput::RequireCheckedSyscalls)
-    exit 1;
-}
+#    print "Done: $result\n"; ## no critic (InputOutput::RequireCheckedSyscalls)
 
 sub update_data {
-    my($type, $target, $source) = @_;
+    my($type, $source, $target) = @_;
+
+    return if ref $source ne 'HASH' || ref $target ne 'HASH';
 
     foreach my $opt_name (@{ $DATA_KEYS->{$type} }) {
         $target->{$opt_name} //= $source->{$opt_name};
     }
-    return $OK;
+    return;
 }
-
-#__DATA__
 
 __END__
 

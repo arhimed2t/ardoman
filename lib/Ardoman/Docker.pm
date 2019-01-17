@@ -20,6 +20,8 @@ use LWP::UserAgent qw{};
 use Carp;
 $Carp::Verbose = 1;
 
+Readonly my $DEFAULT_CHECK_DELAY = 3;
+
 Readonly my %TRANSLATE => (
     env   => 'Env',
     cmd   => 'Cmd',
@@ -209,7 +211,7 @@ sub start {
 }
 
 ################################ INTERFACE SUB ##############################
-# Usage      : $o->undeploy( \%application_config )
+# Usage      : $o->stop( \%application_config )
 # Purpose    : Stop previously started container
 # Returns    : Id of container
 # Parameters : ref to hash with one mandatory field either 'name' or 'id'
@@ -228,8 +230,8 @@ sub stop {
 } # end sub stop
 
 ################################ INTERFACE SUB ##############################
-# Usage      : $o->undeploy( \%application_config )
-# Purpose    : ????
+# Usage      : $o->get( \%application_config )
+# Purpose    : Get ID of started or created container (shows ability of it)
 # Returns    : Id of container
 # Parameters : ref to hash with one mandatory field either 'name' or 'id'
 #            :   optional $quiet suppres output and dieing (in case undeploy)
@@ -241,6 +243,8 @@ sub get {
 
     my $cont = $self->_get($app_conf, $quiet);
 
+    return if !$cont && $quiet; #  Just return false into 'undeploy'
+    
     return $cont->Id();
 }
 
@@ -253,17 +257,12 @@ sub get {
 # Comments   : none
 # See Also   : n/a
 sub check {
-    my($self, @args) = @_;
-    my $app_conf = __validate(shift @args);
-    return $ERROR if !$app_conf;
-    return $ERROR if !$self->{'api'};
+    my($self, $app_conf) = @_;
 
     my $cont = $self->_get($app_conf);
-    my $id   = $cont->Id;
 
-    # Because services inside should be started before check we wait some
-    my $check_delay = $app_conf->{'check_delay'} // $DEFAULT_CHECK_DELAY;
-    sleep $check_delay;
+    # Since the processes need time to start, we will wait a little
+    sleep $app_conf->{'check_delay'} // $DEFAULT_CHECK_DELAY;
 
     my @raw_top_results = ();
     if (!eval { # Need to suppress build-in output in this function
@@ -272,21 +271,18 @@ sub check {
             @raw_top_results = $cont->top()
         } ### end eval {...
         ) {
-        $log->error("Error checking container: $EVAL_ERROR");
-        return $ERROR;
+        croak("Error checking container: $EVAL_ERROR");
     }
 
     my $top_results = pop @raw_top_results;
     if (   ref $top_results ne 'HASH'
-        || ref $top_results->{'Processes'} ne $ARRAY) {
-        $log->error('Wrong format of returned TOP');
-        return $ERROR;
+        || ref $top_results->{'Processes'} ne 'ARRAY') {
+        croak('Wrong format of returned TOP');
     }
 
     my $processes = $top_results->{'Processes'};
     if (!scalar @{$processes}) {
-        $log->error('Empty process list. Nothing run?');
-        return $ERROR;
+        croak('Empty process list. Nothing run?');
     }
 
     if (ref $app_conf->{'check_proc'} eq 'ARRAY') {
@@ -307,7 +303,7 @@ sub check {
         }
     }
 
-    return $id;
+    return $cont->Id();
 } # end sub check
 
 ############################################## INTERNAL UTILITY #############

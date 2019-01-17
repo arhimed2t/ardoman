@@ -12,26 +12,6 @@ use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
 use Carp qw{ carp confess };
-use Cwd qw{};
-use File::Spec;
-
-# Calculate path to our libraries
-BEGIN {
-    my @dirs = File::Spec->splitdir(Cwd::abs_path($PROGRAM_NAME));
-    pop @dirs; # Cut executable name
-    pop @dirs; # Cut 'bin' dir
-    $ENV{'ARDO_WORKDIR'} = File::Spec->catdir(@dirs); ## no critic (Variables::RequireLocalizedPunctuationVars)
-    my %inc_hash = map { $_ => 1 } @INC;
-    my @inc_dirs = ();
-    foreach my $dir_suffix (qw{ lib local/lib }) {
-        my $inc_dir = "$ENV{'ARDO_WORKDIR'}/$dir_suffix";
-        if (-d $inc_dir && -r _ && !$inc_hash{$inc_dir}) {
-            push @inc_dirs, $inc_dir;
-        }
-    }
-    $ENV{'ARDO_DIRS_INC'} = join '::', @inc_dirs;
-} # end BEGIN
-use lib split /::/smx, $ENV{'ARDO_DIRS_INC'};
 
 use File::Path qw{ make_path };
 use File::Slurp qw{ slurp };
@@ -57,6 +37,7 @@ sub _check_dirs {
     if (caller ne __PACKAGE__) {
         $log->logconfess('Private function!');
     }
+    return $OK if !$self->{'_dir'};      # Functionality disabled
     my $dir = $self->{'_dir'};
 
     foreach my $type (keys %{$DATA_KEYS}) {
@@ -73,10 +54,10 @@ sub _check_dirs {
 
 sub _validate {
     my($type) = @_;
-
     if (caller ne __PACKAGE__) {
         $log->logconfess('Private function!');
     }
+
     if (none { $type eq $_ } keys %{$DATA_KEYS}) {
         $log->logconfess("Wrong type of config: $type");
     }

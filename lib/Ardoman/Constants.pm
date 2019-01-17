@@ -42,7 +42,7 @@ our %EXPORT_TAGS = ();
 $EXPORT_TAGS{'data'} = [qw{ $DATA_KEYS }];
 Readonly our $DATA_KEYS => {
     endpoint    => [qw{ host tls_verify ca_file cert_file key_file }],
-    application => [qw{ image name ports command }],
+    application => [qw{ image name id ports cmd env }],
 };
 
 $EXPORT_TAGS{'symbols'} = [qw{ $EMPTY }];

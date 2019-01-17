@@ -9,28 +9,6 @@ use English qw( -no_match_vars );
 use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
-use Readonly;
-use Carp qw{ carp confess };
-use Cwd qw{};
-use File::Spec;
-
-# Calculate path to our libraries
-BEGIN {
-    my @dirs = File::Spec->splitdir(Cwd::abs_path($PROGRAM_NAME));
-    pop @dirs; # Cut executable name
-    pop @dirs; # Cut 'bin' dir
-    $ENV{'ARDO_WORKDIR'} = File::Spec->catdir(@dirs); ## no critic (Variables::RequireLocalizedPunctuationVars)
-    my %inc_hash = map { $_ => 1 } @INC;
-    my @inc_dirs = ();
-    foreach my $dir_suffix (qw{ lib local/lib }) {
-        my $inc_dir = "$ENV{'ARDO_WORKDIR'}/$dir_suffix";
-        if (-d $inc_dir && -r _ && !$inc_hash{$inc_dir}) {
-            push @inc_dirs, $inc_dir;
-        }
-    }
-    $ENV{'ARDO_DIRS_INC'} = join '::', @inc_dirs;
-} # end BEGIN
-use lib split /::/smx, $ENV{'ARDO_DIRS_INC'};
 
 use Ardoman::Constants qw{ :all };
 use Ardoman::Configuration;
@@ -75,6 +53,11 @@ if ($ARGV{'show'}) {
     print Dumper $data;
 }
 
+if ($ARGV{'save'}) {
+    $conf->save(endpoint    => $ARGV{'endpoint'},    $data->{'endpoint'});
+    $conf->save(application => $ARGV{'application'}, $data->{'application'});
+}
+
 my $result = $EMPTY;
 my $api    = Ardoman::Docker->new($data->{'endpoint'});
 my $action = $ARGV{'action'};
@@ -83,10 +66,6 @@ if ($api && $action && $api->can($action)) {
     $result = $api->$action($data->{'application'});
 }
 
-if ($ARGV{'save'}) {
-    $conf->save(endpoint    => $ARGV{'endpoint'},    $data->{'endpoint'});
-    $conf->save(application => $ARGV{'application'}, $data->{'application'});
-}
 if ($ARGV{'purge'}) {
     $conf->purge(endpoint    => $ARGV{'endpoint'});
     $conf->purge(application => $ARGV{'application'});
@@ -135,13 +114,13 @@ may be omitted entirely.
 
 =over
 
-=item --confdir=<confdir>
+=item --confdir [=] <confdir>
 
 Directory where is configuration files are located.
 Contains two directories 'endpoints' and 'applications' for different types
 of configs.
  
-=item  --endpoint=<conn>
+=item  --endpoint [=] <conn>
 
 Name of connection setting to docker endpoint.
 Incorporates such option as:
@@ -154,7 +133,7 @@ This also name for operating with saved configuration: save, load, purge.
 So it must be uniq, otherwise in save case endpoint options
 will be overwritten.
 
-=item --host=<host>
+=item --host [=] <host>
 
 Daemon socket(s) to connect to.
 Default to $ENV{DOCKER_HOST}
@@ -164,17 +143,17 @@ Default to $ENV{DOCKER_HOST}
 Use TLS and verify the remote.
 Default to $ENV{DOCKER_TLS_VERIFY}
 
-=item --ca_file=<ca_file>
+=item --ca_file [=] <ca_file>
 
 Trust certs signed only by this CA.
 Path to ca cert file, default to $ENV{DOCKER_CERT_PATH}/ca.pem
 
-=item --cert_file=<cert_file>
+=item --cert_file [=] <cert_file>
 
 Path to TLS certificate file.
 Path to client cert file, default to $ENV{DOCKER_CERT_PATH}/cert.pem
 
-=item --key_file=<key_file>
+=item --key_file [=] <key_file>
 
 Path to TLS key file.
 Path to client key file, default to $ENV{DOCKER_CERT_PATH}/key.pem
@@ -191,23 +170,41 @@ Command to purge both configurations after use (or may be after save also).
 
 Command to show configurations before connect to endpoint.
 
-=item --action=<action>
+=item --action [=] <action>
 
 action
 
-=item --ports=<ports>
+=item --ports [=] <ports>
 
 ports
 
-=item --name=<name>
+=for Euclid:
+    repeatable
+
+=item --env [=] <env>
+
+ports
+
+=for Euclid:
+    repeatable
+
+=item --name [=] <name>
 
 name
 
-=item --application=<application>
+=item --id [=] <id>
 
 name
 
-=item --image=<image>
+=item --application [=] <application>
+
+name
+
+=item --image [=] <image>
+
+name
+
+=item --cmd [=] <cmd>...
 
 name
 

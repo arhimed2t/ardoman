@@ -11,35 +11,13 @@ use English qw( -no_match_vars );
 use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
-use Carp qw{ carp confess };
-use Cwd qw{};
-use File::Spec;
-
-# Calculate path to our libraries
-BEGIN {
-    my @dirs = File::Spec->splitdir(Cwd::abs_path($PROGRAM_NAME));
-    pop @dirs; # Cut executable name
-    pop @dirs; # Cut 'bin' dir
-    $ENV{'ARDO_WORKDIR'} = File::Spec->catdir(@dirs); ## no critic (Variables::RequireLocalizedPunctuationVars)
-    my %inc_hash = map { $_ => 1 } @INC;
-    my @inc_dirs = ();
-    foreach my $dir_suffix (qw{ lib local/lib }) {
-        my $inc_dir = "$ENV{'ARDO_WORKDIR'}/$dir_suffix";
-        if (-d $inc_dir && -r _ && !$inc_hash{$inc_dir}) {
-            push @inc_dirs, $inc_dir;
-        }
-    }
-    $ENV{'ARDO_DIRS_INC'} = join '::', @inc_dirs;
-} # end BEGIN
-use lib split /::/smx, $ENV{'ARDO_DIRS_INC'};
-
-#use File::Path qw{ make_path };
-#use File::Slurp qw{ slurp };
-#use JSON;
+use Readonly;
 use List::Util qw{ notall pairgrep };
+
+#
+#
 use Eixo::Docker::Api;
 use Log::Log4perl;
-use Readonly;
 
 use Ardoman::Constants qw{ :all };
 
@@ -53,8 +31,12 @@ sub new {
         api  => undef,
     }, $class;
 
-    if (ref $ep_conf_href ne 'HASH') {
+    if (ref $ep_conf_href ne $HASH) {
         $log->error('Wrong argument for constructor: not hash');
+        return;
+    }
+    if (!$ep_conf_href->{'host'}) {
+        $log->warn('Cannot create constructor for API: host absent today');
         return;
     }
 
@@ -69,7 +51,9 @@ sub new {
 } # end sub new
 
 sub deploy {
-    my($self, $app_href) = @_;
+    my $self     = shift;
+    my $app_href = __validate(shift);
+    return $ERROR if !$app_href;
     return $ERROR if !$self->{'api'};
 
     my $id = $self->create($app_href);
@@ -78,13 +62,15 @@ sub deploy {
     $app_href->{'id'} = $id;
 
     return $ERROR if !$self->start($app_href);
-    return $ERROR if !$self->check($app_href);
+#    return $ERROR if !$self->check($app_href);
 
     return $id;
 } # end sub deploy
 
 sub undeploy {
-    my($self, $app_href) = @_;
+    my $self     = shift;
+    my $app_href = __validate(shift);
+    return $ERROR if !$app_href;
     return $ERROR if !$self->{'api'};
 
     my $id = $self->stop($app_href);
@@ -94,7 +80,7 @@ sub undeploy {
     return $ERROR if !$self->delete($app_href);
 
     # Note: here reverse logic
-    return $ERROR if $self->check($app_href);
+#    return $ERROR if $self->check($app_href);
 
     return $id;
 } # end sub undeploy
@@ -106,10 +92,13 @@ sub create {
     return $ERROR if !$self->{'api'};
 
     __special_cases($app_href); # Transform 'Ports', etc.
-    print Dumper $app_href;
+    print "SCSCSC:" . Dumper $app_href;
 
     my($cont, $handler, $id);
     $handler = $self->{'api'}->containers;
+
+    print Dumper eval { __crop($app_href) };
+
     if (!eval { $cont = $handler->create(__crop($app_href)) }) {
         $log->error("Error creating container: $EVAL_ERROR");
         return $ERROR;
@@ -153,15 +142,14 @@ sub start {
 
     my $cont = $self->_get($app_href);
     if (!$cont) {
-        $log->error("Error deleting container: NOT FOUND");
+        $log->error("Error starting container: NOT FOUND");
         return $ERROR;
     }
     my $id = $cont->Id;
     if (!eval { $cont->start(__crop($app_href)) }) {
-        $log->error("Error deleting container: $EVAL_ERROR");
+        $log->error("Error starting container: $EVAL_ERROR");
         return $ERROR;
     }
-
     return $id;
 } # end sub start
 
@@ -173,12 +161,12 @@ sub stop {
 
     my $cont = $self->_get($app_href);
     if (!$cont) {
-        $log->error("Error deleting container: NOT FOUND");
+        $log->error("Error stopping container: NOT FOUND");
         return $ERROR;
     }
     my $id = $cont->Id;
-    if (!eval { $cont->start(__crop($app_href)) }) {
-        $log->error("Error deleting container: $EVAL_ERROR");
+    if (!eval { $cont->stop(__crop($app_href)) }) {
+        $log->error("Error stopping container: $EVAL_ERROR");
         return $ERROR;
     }
 
@@ -193,14 +181,23 @@ sub check {
 
     my $cont = $self->_get($app_href);
     if (!$cont) {
-        $log->error("Error deleting container: NOT FOUND");
+        $log->error("Error checking container: NOT FOUND");
         return $ERROR;
     }
     my $id = $cont->Id;
-    if (!eval { $cont->start(__crop($app_href)) }) {
-        $log->error("Error deleting container: $EVAL_ERROR");
+    my @res = ();
+    if (!eval { @res = $cont->top(__crop($app_href)) }) {
+        $log->error("Error checking container: $EVAL_ERROR");
         return $ERROR;
     }
+
+    my $top_res_href = pop @res;
+    if (ref $top_res_href eq $HASH
+        && ref $top_res_href->{'Processes'} eq $ARRAY) {
+        return $ERROR;
+    }
+
+print Dumper \@processes;exit;
 
     return $id;
 } # end sub check
@@ -230,8 +227,10 @@ sub __validate {
 }
 
 Readonly my %TRANSLATE => (
+    env   => 'Env',
     cmd   => 'Cmd',
     image => 'Image',
+    id    => 'Id',
     name  => 'Name',
     ports => 'Ports', # Be aware: It will be changed in special cases
 );
@@ -285,8 +284,7 @@ sub __required {
 } # end sub __required
 
 Readonly my %ALLOWED => (
-    create => [qw{ Image Name Cmd Hostname ExposedPorts HostConfig }],
-    start  => [qw{ PortBindings }],
+    create => [qw{ Image Name Env Cmd Hostname ExposedPorts HostConfig }],
 );
 
 sub __crop {
@@ -312,15 +310,21 @@ sub __special_cases {
     return $ERROR if ref $arg_href ne $HASH;
 
     # Special cases. OMG
-    if ($arg_href->{'Ports'}) {
-        my @ports = split /:/smx, $arg_href->{'Ports'};
-        my $cont_port = pop @ports // $EMPTY;
-        my $host_port = pop @ports // $EMPTY;
-        my $host_ip   = pop @ports // $EMPTY;
-        $arg_href->{'ExposedPorts'} = { $cont_port => {} };
-        $arg_href->{'HostConfig'}->{'PortBindings'} = { $cont_port =>
+    my(@ports, $cont_port, $host_port, $host_ip);
+    if (ref $arg_href->{'Ports'} eq $ARRAY) {
+        foreach my $port (@{ $arg_href->{'Ports'} }) {
+            @ports = split /:/smx, $port;
+            $cont_port = pop @ports // $EMPTY;
+            $host_port = pop @ports // $EMPTY;
+            $host_ip   = pop @ports // $EMPTY;
+
+            next if !$cont_port;
+            $arg_href->{'ExposedPorts'} = { $cont_port => {} };
+            $arg_href->{'HostConfig'}->{'PortBindings'} = { $cont_port =>
                 [ { 'HostIp' => $host_ip, 'HostPort' => $host_port } ] };
+        }
     }
 
 } # end sub __special_cases
+
 

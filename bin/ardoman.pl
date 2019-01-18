@@ -41,6 +41,8 @@ if ($ARGV{'debug'}) {
     $Carp::Verbose = 1; ## no critic (Variables::ProhibitPackageVars)
 }
 
+print Dumper \%INC; exit;
+
 #############################################################################
 # Start REAL work
 #############################################################################
@@ -106,7 +108,7 @@ __END__
 
 =head1 NAME
 
-ardoman – Arhimed's Docker Manager
+ardoman - Arhimed's Docker Manager
 
 =head1 VERSION
 
@@ -124,6 +126,7 @@ This documentation refers to ardoman version 0.0.1.
         --host localhost:2375 \
         --confdir config \
         --save \
+        --show \
         --endpoint localhost \
         --application tomcat \
         --name tomcat \
@@ -521,5 +524,63 @@ So you can even ommit mandatory parameter 'host':
 
     PERL5LIB=lib DOCKER_HOST=localhost:2375 bin/ardoman.pl \
         --name hello --action check
+
+=head1 DEPENDENCIES
+
+This application uses these third party CPAN modules:
+
+    Eixo::Docker::Api
+    Clone
+    Readonly
+    List::Util
+    Eixo::Docker::Api
+    LWP::UserAgent
+    File::Path
+    File::Spec
+    File::Slurp
+    JSON
+
+Tests also requires additional test-related modules:
+
+    Test::More
+    Test::Exception
+    Test::VirtualModule
+
+Also se aware that program do not autoload images for cantainers. So before
+run sure that images are available. For correct run system tests you need 
+download this image before run system tests: tutum/hello-world
+
+For correct run examples desribed in this documentation you should load these
+docker's images:
+
+    tutum/hello-world
+    tomcat
+    glassfish
+    alanpeng/oracle-weblogic11g
+    subfuzion/netcat
+
+=head1 INCOMPATIBILITIES
+
+Not found yet.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Timothy Khalatskiy, <arhimed2t@gmail.com>
+Patches are welcome.
+
+=head1 AUTHOR
+
+Timothy Khalatskiy, <arhimed2t@gmail.com>
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2019 Timothy Khalatskiy (<arhimed2t@gmail.com>). All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 

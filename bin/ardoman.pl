@@ -102,7 +102,7 @@ sub update_data {
     return;
 } # end sub update_data
 
-#__END__
+__END__
 
 =head1 NAME
 
@@ -130,19 +130,18 @@ This documentation refers to ardoman version 0.0.1.
         --image tomcat \
         --ports 8080:8080 \
         --check_proc java \
-        --check_delay 3 \
+        --check_delay 5 \
         --check_url http://127.0.0.1:8080/ \
         --action deploy
 
     PERL5LIB=lib bin/ardoman.pl \
         --confdir config \
         --endpoint localhost \
-        --name tomcat1 \
         --application tomcat \
-        --action deploy \
+        --name tomcat1 \
         --ports 8081:8080 \
-        --check_delay 3 \
-        --check_url http://127.0.0.1:8081/
+        --check_url http://127.0.0.1:8081/ \
+        --action deploy
 
 
 =head1 OPTIONS
@@ -328,21 +327,162 @@ when something went wrong.
 
 =head1 DESCRIPTION
 
-A full description of the application and its features.
-May include numerous subsections (i.e., =head2, =head3, etc.).
-
 This application is designed to deploy various docker applications 
 on different endpoints. It uses command line interface to get required 
 parameters and directives what to do.
 
+=head2 Examples
 
+=head3 Deploy/undeploy 'hello-world' with minimal options
 
+    PERL5LIB=lib bin/ardoman.pl \
+        --host=localhost:2375 \
+        --image='tutum/hello-world' \
+        --action=deploy
+
+Which is absolutely pointless because we have not taken care of the ports.
+Programm will print us new docker container ID, like
+
+    940e70618d095ffb12ec142fbafe6d87c8670ff93c5a534747f3fcfc38513605
+
+which we can to manipulate container
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --host=localhost:2375 \
+        --id=940e70618d095ffb12ec142fbafe6d87c8670ff93c5a534747f3fcfc38513605 \
+        --action=stop
+
+This returns the same Id again (as sign of successful completion)
+
+By the way, new contaiter got automatic name (in my case 'adoring_khorana')
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --host=localhost:2375 \
+        --name='adoring_khorana' \
+        --action=remove
+
+And again we will see Id of container as sign of success.
+
+=head3 Deploy/undeploy 'netcat' with 'cmd' option
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --host=localhost:2375 \
+        --confdir=config \
+        --show \
+        --endpoint=localhost \
+        --name=nc \
+        --image='subfuzion/netcat' \
+        --cmd '-l' '0.0.0.0' '5555' \
+        --ports '5555:5555' \
+        --action=deploy
+
+You can use for undeploy the same arguments - extra will be ignored.
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --host=localhost:2375 \
+        --confdir=config \
+        --show \
+        --endpoint=localhost \
+        --name=nc \
+        --image='subfuzion/netcat' \
+        --cmd '-l' '0.0.0.0' '5555' \
+        --ports '5555:5555' \
+        --action=undeploy
+
+=head3 Deloy 'tomcat' with 'check_url' and 'ckeck_proc' options
+
+You can save endpoint parameters to config, then just specify '--endpoint'
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --host localhost:2375 \
+        --confdir config \
+        --endpoint farfar \
+        --show \
+        --save
+
+Application setting may be saved too:
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --confdir config \
+        --endpoint farfar \
+        --application tomcat \
+        --save \
+        --name tomcat \
+        --image tomcat \
+        --ports 8080:8080 \
+        --check_proc java \
+        --check_url http://127.0.0.1:8080/ \
+        --action deploy
+
+and then use for futher operations (like undeploy).
+Note that 'Id' won't save in Application configuration, just 'name'
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --confdir config \
+        --endpoint farfar \
+        --application tomcat \
+        --action undeploy
+
+=head3 Create Weblogic with 'env' and fail check_url as expected
+
+Try to deploy WebLogicServer.
+
+    DOCKER_HOST=127.0.0.1:2375 PERL5LIB=lib bin/ardoman.pl \
+        --debug
+        --name=wl1 \
+        --image='alanpeng/oracle-weblogic11g' \
+        --ports '8001:5556' \
+        --ports '7001:7001' \
+        --check_proc java \
+        --check_url http://127.0.0.1:7001/ \
+        --action=deploy
+
+Will get "500 Status read failed: Connection reset by peer" message.
+Due to '--debug' argument find that failure was check stage.
+
+Using 'docker logs wl' figure out that password required. So set '--env'
+and try to run again.
+
+    DOCKER_HOST=127.0.0.1:2375 PERL5LIB=lib bin/ardoman.pl \
+        --debug
+        --name=wl2 \
+        --image='alanpeng/oracle-weblogic11g' \
+        --ports '8002:5556' \
+        --ports '7002:7001' \
+        --check_proc java \
+        --check_url http://127.0.0.1:7002/ \
+        --env base_domain_default_password=123AAA456zzz \
+        --action=deploy
+
+Will get "500 Status read failed: Connection reset by peer" message.
+But this not what we expect. It is because the server does not have 
+time to start. Add '--check_delay=30'
+
+    DOCKER_HOST=127.0.0.1:2375 PERL5LIB=lib bin/ardoman.pl \
+        --debug
+        --name=wl3 \
+        --image='alanpeng/oracle-weblogic11g' \
+        --ports '8003:5556' \
+        --ports '7003:7001' \
+        --check_proc java \
+        --check_url http://127.0.0.1:7003/ \
+        --env base_domain_default_password=123AAA456zzz \
+        --check_delay=30 \
+        --action=deploy
+
+We'll get HTTP/1.1 404 Not Found which is not good.
+But this is beyond the scope of the task.
 
 =head1 DIAGNOSTICS
 
-For run test, use:
+For unit test, use:
 
     PERL5LIB=lib prove -r -v
+
+or one find of tests only
+
+    PERL5LIB=lib prove -v t/unit 
+    PERL5LIB=lib prove -v t/func
 
 In the case of debugging, you can spesify parameter --debug that will enable
 $Carp::Verbose. This variable makes programm generate stack backtraces.

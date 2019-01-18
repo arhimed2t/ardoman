@@ -77,7 +77,7 @@ sub deploy {
     $app_conf->{'Id'} = $self->start($app_conf);
 
     return $self->check($app_conf);
-} # end sub deploy
+}
 
 ################################ INTERFACE SUB ##############################
 # Usage      : $o->undeploy( \%application_config )
@@ -134,9 +134,13 @@ sub create {
             $host_ip   = pop @ports // q{};
 
             next if !$cont_port;
-            $app_conf->{'ExposedPorts'} = { $cont_port => {} };
-            $app_conf->{'HostConfig'}->{'PortBindings'} = { $cont_port =>
-                    [ { 'HostIp' => $host_ip, 'HostPort' => $host_port } ] };
+            $app_conf->{'ExposedPorts'} //= {};
+            $app_conf->{'ExposedPorts'}->{$cont_port} = {};
+
+            $app_conf->{'HostConfig'} //= {};
+            $app_conf->{'HostConfig'}->{'PortBindings'} //= {};
+            $app_conf->{'HostConfig'}->{'PortBindings'}->{$cont_port}
+                = [ { 'HostIp' => $host_ip, 'HostPort' => $host_port } ];
         } # end foreach my $port (@{ $app_conf...})
     } # end if (ref $app_conf->{'Ports'...})
 
@@ -151,6 +155,7 @@ sub create {
     }
 
     return $cont->Id();
+
 } # end sub create
 
 ################################ INTERFACE SUB ##############################

@@ -1,6 +1,6 @@
 # NAME
 
-ardoman – Arhimed's Docker Manager
+ardoman - Arhimed's Docker Manager
 
 # VERSION
 
@@ -16,6 +16,7 @@ This documentation refers to ardoman version 0.0.1.
         --host localhost:2375 \
         --confdir config \
         --save \
+        --show \
         --endpoint localhost \
         --application tomcat \
         --name tomcat \
@@ -35,7 +36,42 @@ This documentation refers to ardoman version 0.0.1.
         --check_url http://127.0.0.1:8081/ \
         --action deploy
 
+# REQUIRED ARGUMENTS
+
+### Minimal required arguments.
+
+The one of this combination is required.
+
+    --host=<host> - explicit host (host ip/url with port) to EP.
+
+    --confdir=<config> --endpoint=<EP> - name of previously saved EP config.
+
+    DOCKER_HOST=<host> - environment variable.
+
+### Other cases
+
+    --action=deploy | --action=create - requires option '--image'
+
+Note also you can specify pair of '--confdir' and '--application' to get 
+previously saved '--image' option.
+
+### For any other action
+
+    --action=<action> - requires '--name' or '--id'
+
+Note also you can specify pair of '--confdir' and '--application' to get
+previously saved '--name' (not --id) option.
+
 # OPTIONS
+
+Common options like:
+
+           ardoman.pl --help
+           ardoman.pl --man
+           ardoman.pl --usage
+           ardoman.pl --version
+
+are supported by Getopt::Euclid module. Thanks a lot.
 
 - --action \[=\] &lt;action> | --Action \[=\] &lt;action>
 
@@ -194,7 +230,7 @@ This documentation refers to ardoman version 0.0.1.
 
 - --debug
 
-    This argument makes programm generate stack backtraces
+    This argument makes program generate stack backtraces
     when something went wrong.
 
 # DESCRIPTION
@@ -203,9 +239,9 @@ This application is designed to deploy various docker applications
 on different endpoints. It uses command line interface to get required 
 parameters and directives what to do.
 
-## Examples
+# Examples
 
-### Deploy/undeploy 'hello-world' with minimal options
+## Deploy/undeploy 'hello-world' with minimal options
 
     PERL5LIB=lib bin/ardoman.pl \
         --host=localhost:2375 \
@@ -213,7 +249,7 @@ parameters and directives what to do.
         --action=deploy
 
 Which is absolutely pointless because we have not taken care of the ports.
-Programm will print us new docker container ID, like
+Program will print us new docker container ID, like
 
     940e70618d095ffb12ec142fbafe6d87c8670ff93c5a534747f3fcfc38513605
 
@@ -226,7 +262,7 @@ which we can to manipulate container
 
 This returns the same Id again (as sign of successful completion)
 
-By the way, new contaiter got automatic name (in my case 'adoring\_khorana')
+By the way, new container got automatic name (in my case 'adoring\_khorana')
 
     PERL5LIB=lib bin/ardoman.pl \
         --host=localhost:2375 \
@@ -235,7 +271,7 @@ By the way, new contaiter got automatic name (in my case 'adoring\_khorana')
 
 And again we will see Id of container as sign of success.
 
-### Deploy/undeploy 'netcat' with 'cmd' option
+## Deploy/undeploy 'netcat' with 'cmd' option
 
     PERL5LIB=lib bin/ardoman.pl \
         --host=localhost:2375 \
@@ -245,7 +281,7 @@ And again we will see Id of container as sign of success.
         --name=nc \
         --image='subfuzion/netcat' \
         --cmd '-l' '0.0.0.0' '5555' \
-        --ports '5555:5555' \
+        --ports 'localhost:5555:5555' \
         --action=deploy
 
 You can use for undeploy the same arguments - extra will be ignored.
@@ -258,10 +294,10 @@ You can use for undeploy the same arguments - extra will be ignored.
         --name=nc \
         --image='subfuzion/netcat' \
         --cmd '-l' '0.0.0.0' '5555' \
-        --ports '5555:5555' \
+        --ports 'localhost:5555:5555' \
         --action=undeploy
 
-### Deloy 'tomcat' with 'check\_url' and 'ckeck\_proc' options
+## Deploy 'tomcat' with 'check\_url' and 'ckeck\_proc' options
 
 You can save endpoint parameters to config, then just specify '--endpoint'
 
@@ -286,7 +322,7 @@ Application setting may be saved too:
         --check_url http://127.0.0.1:8080/ \
         --action deploy
 
-and then use for futher operations (like undeploy).
+and then use for further operations (like undeploy).
 Note that 'Id' won't save in Application configuration, just 'name'
 
     PERL5LIB=lib bin/ardoman.pl \
@@ -295,7 +331,74 @@ Note that 'Id' won't save in Application configuration, just 'name'
         --application tomcat \
         --action undeploy
 
-### Create Weblogic with 'env' and fail check\_url as expected
+## Deploy/undeploy 'glassfish' with separate steps
+
+Create configurations, and save them:
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --host=localhost:2375 \
+        --confdir=config \
+        --endpoint=glassfish_EP \
+        --application=glassfish \
+        --name=glassfish \
+        --show \
+        --save
+
+Create container, pass almost all options:
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --confdir=config \
+        --endpoint=glassfish_EP \
+        --application=glassfish \
+        --image='glassfish' \
+        --ports '4848:4848' \
+        --ports '8080:8080' \
+        --ports '8181:8181' \
+        --action=create
+
+Check it has created:
+
+    PERL5LIB=lib bin/ardoman.pl --confdir=config --endpoint=glassfish_EP \
+        --application=glassfish --action=get
+
+Then start it:
+
+    PERL5LIB=lib bin/ardoman.pl --confdir=config --endpoint=glassfish_EP \
+        --application=glassfish --action=start
+
+And check processes and URLs:
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --confdir=config \
+        --endpoint=glassfish_EP \
+        --application=glassfish \
+        --check_proc glassfish.jar \
+        --check_proc 'appserver-cli.jar start-domain' \
+        --check_url http://127.0.0.1:8080/ \
+        --check_url http://127.0.0.1:4848/ \
+        --action=check
+
+Now can stop container:
+
+    PERL5LIB=lib bin/ardoman.pl --confdir=config --endpoint=glassfish_EP \
+        --application=glassfish --action=stop
+
+Check it is still available (and can be started again)
+
+    PERL5LIB=lib bin/ardoman.pl --confdir=config --endpoint=glassfish_EP \
+        --application=glassfish --action=get
+
+Remove container:
+
+    PERL5LIB=lib bin/ardoman.pl --confdir=config --endpoint=glassfish_EP \
+        --application=glassfish --action=remove
+
+And check that it is no longer available.
+
+    PERL5LIB=lib bin/ardoman.pl --confdir=config --endpoint=glassfish_EP \
+        --application=glassfish --action=get
+
+## Create Weblogic with 'env' and fail check\_url as expected
 
 Try to deploy WebLogicServer.
 
@@ -345,6 +448,27 @@ time to start. Add '--check\_delay=30'
 We'll get HTTP/1.1 404 Not Found which is not good.
 But this is beyond the scope of the task.
 
+# EXIT STATUS
+
+Returns zero exit status on success.
+
+In case failure returns non zero exit status (255 actually).
+
+This may mean such reasons (but not limited to):
+
+    Wrong arguments
+    Required argument missed
+    Config directories are not writable
+    Write config failure (open for write, print, close)
+    Can not connect to endpoint
+    Image not found
+    Ports are busy
+    Name conflicts or short or wrong
+    Check not started container
+    Remove started container
+    Container not found by Id or Name
+    Check failed (URL does not response, process does not exist)
+
 # DIAGNOSTICS
 
 For unit test, use:
@@ -356,10 +480,10 @@ or one find of tests only
     PERL5LIB=lib prove -v t/unit 
     PERL5LIB=lib prove -v t/func
 
-In the case of debugging, you can spesify parameter --debug that will enable
-$Carp::Verbose. This variable makes programm generate stack backtraces.
+In the case of debugging, you can specify parameter --debug that will enable
+$Carp::Verbose. This variable makes program generate stack backtraces.
 
-# CONFIGURATION AND ENVIRONMENT
+# CONFIGURATION
 
 Since it was necessary to write quickly and briefly, I chose to save the
 configuration in files in the "JSON" format. I also decided that it would be
@@ -382,6 +506,8 @@ with the command line arguments, the program saves the data in a file.
 If the "purge" argument is also specified (or only), configuration files are
 deleted at the last stage, before exiting the program.
 
+# ENVIRONMENT
+
 You can also use environment variables to specify some parameters.
 Eixo::Docker::Api supports these environment variables:
 
@@ -394,10 +520,60 @@ So you can even ommit mandatory parameter 'host':
     PERL5LIB=lib DOCKER_HOST=localhost:2375 bin/ardoman.pl \
         --name hello --action check
 
-# POD ERRORS
+# DEPENDENCIES
 
-Hey! **The above document had some coding errors, which are explained below:**
+This application uses these third party CPAN modules:
 
-- Around line 109:
+    Eixo::Docker::Api
+    Clone
+    Readonly
+    List::Util
+    Eixo::Docker::Api
+    LWP::UserAgent
+    File::Path
+    File::Spec
+    File::Slurp
+    JSON
 
-    Non-ASCII character seen before =encoding in '–'. Assuming UTF-8
+Tests also requires additional test-related modules:
+
+    Test::More
+    Test::Exception
+    Test::VirtualModule
+
+Also be aware that program do not autoload images for containers. So before
+run sure that images are available. For correct run system tests you need 
+download this image before run system tests: tutum/hello-world
+
+For correct run examples described in this documentation you should load these
+docker's images:
+
+    tutum/hello-world
+    tomcat
+    glassfish
+    alanpeng/oracle-weblogic11g
+    subfuzion/netcat
+
+# INCOMPATIBILITIES
+
+Not found yet.
+
+# BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Timothy Khalatskiy, <arhimed2t@gmail.com>
+Patches are welcome.
+
+# AUTHOR
+
+Timothy Khalatskiy, <arhimed2t@gmail.com>
+
+# LICENSE AND COPYRIGHT
+
+Copyright (c) 2019 Timothy Khalatskiy (<arhimed2t@gmail.com>). All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

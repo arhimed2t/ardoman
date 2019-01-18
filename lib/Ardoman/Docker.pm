@@ -93,7 +93,7 @@ sub undeploy {
     my $id;
     { # to prevent influence to final 'get' (check of lack)
         $id = $self->stop($app_conf); # Here Id need for output only
-        local $app_conf->{'Id'} = $id;
+        local $app_conf->{'Id'} = $id; ## no critic (Variables::ProhibitLocalVars)
         $id = $self->remove($app_conf);
     }
 
@@ -272,7 +272,7 @@ sub check {
 
     if (ref $app_conf->{'Check_proc'} eq 'ARRAY') {
         foreach my $proc_re (@{ $app_conf->{'Check_proc'} }) {
-            if (none { $_->[-1] =~ m/$proc_re/smx } @{$processes}) {
+            if (none { $_->[-1] =~ m/$proc_re/sm } @{$processes}) { ## no critic (RegularExpressions::RequireExtendedFormatting)
                 croak("Required process not found: $proc_re");
             }
         }

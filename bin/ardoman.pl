@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
@@ -6,9 +6,11 @@ use warnings;
 use version; our $VERSION = version->declare('v0.0.1');
 
 use English qw( -no_match_vars );
+use Carp;
 use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
+
 use Readonly;
 
 use Ardoman::Configuration;
@@ -35,6 +37,10 @@ my $data = {
 my $endpoint_name    = $ARGV{'endpoint'};
 my $application_name = $ARGV{'application'};
 
+if ($ARGV{'debug'}) {
+    $Carp::Verbose = 1; ## no critic (Variables::ProhibitPackageVars)
+}
+
 #############################################################################
 # Start REAL work
 #############################################################################
@@ -47,43 +53,43 @@ my $conf = Ardoman::Configuration->new($ARGV{'confdir'});
 # By default - load
 if ($ARGV{'confdir'}) {
     update_data(
-        endpoint => $conf->load(endpoint => $endpoint_name),
-        $data->{'endpoint'},
+        endpoint => # Update what we load from confdir
+            $conf->load(endpoints => $endpoint_name), # from this
+        $data->{'endpoint'},                          # to this
     );
     update_data(
-        application => $conf->load(application => $application_name}),
-        $data->{'application'},
+        application => # Update what we load from confdir
+            $conf->load(applications => $application_name), # from this
+        $data->{'application'},                             # to this
     );
 } # end if ($ARGV{'confdir'})
 
 if ($ARGV{'show'}) {
-    print 'DATA:' . Dumper($data);
+    print 'DATA:' . Dumper($data); ## no critic (InputOutput::RequireCheckedSyscalls)
 }
 
 if ($ARGV{'save'}) {
-    $conf->save(endpoint    => $endpoint_name,    $data->{'endpoint'});
-    $conf->save(application => $application_name, $data->{'application'});
+    $conf->save(endpoints    => $endpoint_name,    $data->{'endpoint'});
+    $conf->save(applications => $application_name, $data->{'application'});
 }
 
 if ($ARGV{'purge'}) {
-    $conf->purge(endpoint    => $endpoint_name);
-    $conf->purge(application => $application_name);
+    $conf->purge(endpoints    => $endpoint_name);
+    $conf->purge(applications => $application_name);
 }
 
 my $api    = Ardoman::Docker->new($data->{'endpoint'});
 my $action = $ARGV{'action'};
 
 if ($api && $action && $api->can($action)) {
-    print $api->$action($data->{'application'});
+    print $api->$action($data->{'application'}), "\n"; ## no critic (InputOutput::RequireCheckedSyscalls)
 }
 
 exit 0;
 
-#    print "Done: $result\n"; ## no critic (InputOutput::RequireCheckedSyscalls)
 #############################################################################
 # END
 #############################################################################
-
 
 sub update_data {
     my($type, $source, $target) = @_;
@@ -94,10 +100,9 @@ sub update_data {
         $target->{$opt_name} //= $source->{$opt_name};
     }
     return;
-}
+} # end sub update_data
 
-__END__
-
+#__END__
 
 =head1 NAME
 
@@ -115,21 +120,21 @@ This documentation refers to ardoman version 0.0.1.
 
 
 
-    PERL5LIB=lib:local/lib/perl5 bin/ardoman.pl \
-        --confdir config \
-        --endpoint localhost \
+    PERL5LIB=lib bin/ardoman.pl \
         --host localhost:2375 \
-        --name tomcat \
+        --confdir config \
+        --save \
+        --endpoint localhost \
         --application tomcat \
-        --action deploy \
+        --name tomcat \
         --image tomcat \
-        --check_proc java \
         --ports 8080:8080 \
+        --check_proc java \
         --check_delay 3 \
         --check_url http://127.0.0.1:8080/ \
-        --save
+        --action deploy
 
-    PERL5LIB=lib:local/lib/perl5 bin/ardoman.pl \
+    PERL5LIB=lib bin/ardoman.pl \
         --confdir config \
         --endpoint localhost \
         --name tomcat1 \
@@ -157,7 +162,6 @@ Action what need to do with application. Valid actions are:
     check
 
 Note configuration related commands ('--save', '--purge') do not affect 
-
 '--action' behavior and do not depend on '--action'.
 
 =item --confdir [=] <root_config_dir>
@@ -166,11 +170,6 @@ Directory where is configuration files are located.
 Contains two directories 'endpoints' and 'applications' for different types
 of configs.
  
-=item --key_file [=] <path_to_key_file>
-
-Path to TLS key file.
-Path to client key file, default to $ENV{DOCKER_CERT_PATH}/key.pem
-
 =item --show
 
 Command to show configurations before save/purge it and connect to endpoint.
@@ -196,7 +195,7 @@ This also name for operating with saved configuration: save, load, purge.
 So it must be uniq, otherwise in save case endpoint options 
 will be overwritten.
 
-=item --host [=] <host_port>
+=item --host [=] <host_and_port>
 
 Daemon socket(s) to connect to.
 Default to $ENV{DOCKER_HOST}
@@ -216,7 +215,12 @@ Path to ca cert file, default to $ENV{DOCKER_CERT_PATH}/ca.pem
 Path to TLS certificate file.
 Path to client cert file, default to $ENV{DOCKER_CERT_PATH}/cert.pem
 
-=item --application [=] <application> | --Application [=] <application>
+=item --key_file [=] <path_to_key_file>
+
+Path to TLS key file.
+Path to client key file, default to $ENV{DOCKER_CERT_PATH}/key.pem
+
+=item --application [=] <app_name> | --Application [=] <app_name>
 
 Name of aggregate of container related options.
 With this name those option will be load/save/purge with corresponding 
@@ -225,7 +229,7 @@ configuration related commands.
 Note all application related parameters have a sibling with
 capitalized first letter. 
 
-=item --name [=] <name> | --Name [=] <name>
+=item --name [=] <container_name> | --Name [=] <container_name>
 
 Assign the specified name to the container in case 'create' or 'deploy'.
 Or search container by name for other cases.
@@ -251,6 +255,11 @@ Exapmle:
     - "8000:8000/tcp"
     - "127.0.0.1:8001:8001"
 
+You can use more then one port bindings, to do this just specify --ports as
+many times as you need:
+
+    --ports '5556:5556' --ports '7001:7001'
+
 =for Euclid:
     repeatable
 
@@ -268,28 +277,52 @@ This may be specified several times for different variables.
 
 =item --cmd [=] <cmd>... | --Cmd [=] <cmd>...
 
-name
+Command to run specified as a string or an array of strings.
+This argument can use only one time, but it accepts many values.
+
+    PERL5LIB=lib bin/ardoman.pl \
+        --confdir=config \
+        --endpoint=localhost \
+        --host=localhost:2375 \
+        --show \
+        --action=deploy \
+        --name=nc \
+        --image='subfuzion/netcat' \
+        --cmd '-l' '0.0.0.0' '7777' \
+        --ports '5555:5555'
 
 =item --check_proc [=] <process_re> | --Check_proc [=] <process_re>
 
-name
+Pattern of process to find it after start application. 
+This may be specified several times for different variables.
+If many processes specified all of these must be run at check time.
 
 =for Euclid:
     repeatable
 
 =item --check_url [=] <fq_url> | --Check_url [=] <fq_url>
 
-name
+After deploy you can check if application response via HTTP.
+To do this you must specify full qualified URL. Verification 
+is performed using the module LWP::UserAgent but without any custom 
+settings. Application must return non-error response (neither 4xx 
+nor 5xx).
 
 =for Euclid:
     repeatable
 
 =item --check_delay [=] <seconds> | --Check_delay [=] <seconds>
 
-=for Euclid:
-    check_delay.type: integer
+Since the processes need time to start, we will wait a little.
+The value must contain an integer number of seconds.
 
-name
+=for Euclid:
+    seconds.type: integer
+
+=item --debug
+
+This argument makes programm generate stack backtraces
+when something went wrong.
 
 =back
 
@@ -298,11 +331,21 @@ name
 A full description of the application and its features.
 May include numerous subsections (i.e., =head2, =head3, etc.).
 
+This application is designed to deploy various docker applications 
+on different endpoints. It uses command line interface to get required 
+parameters and directives what to do.
+
+
+
+
 =head1 DIAGNOSTICS
 
 For run test, use:
 
     PERL5LIB=lib prove -r -v
+
+In the case of debugging, you can spesify parameter --debug that will enable
+$Carp::Verbose. This variable makes programm generate stack backtraces.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -327,8 +370,16 @@ with the command line arguments, the program saves the data in a file.
 If the "purge" argument is also specified (or only), configuration files are
 deleted at the last stage, before exiting the program.
 
+You can also use environment variables to specify some parameters.
+Eixo::Docker::Api supports these environment variables:
 
+    DOCKER_HOST
+    DOCKER_TLS_VERIFY
+    DOCKER_CERT_PATH
 
+So you can even ommit mandatory parameter 'host':
 
+    PERL5LIB=lib DOCKER_HOST=localhost:2375 bin/ardoman.pl \
+        --name hello --action check
 
 

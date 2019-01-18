@@ -21,26 +21,9 @@ use Readonly;
 # Our own modules (Mocking and Virualization)
 # Mock external subroutines
 
-use Mocker
-# Modules list
-qw{},
-# Mock Log4perl at compile time
-[
-#  'Log::Log4perl',
-#  [ qw{ adjust_level debug_for_task } ],
-#  get_logger =>  sub {
-#      return bless {} => 'Log::Log4perl';
-#  },
-#  [ qw{ error debug info warn trace } ] =>
-##    sub { print STDERR '-'x 80 . "\n" . Dumper @_; return 1; },
-];
 
 #############################################################################
 # Mock some subroutines at run time
-MOCK(
-  [
-  ],
-);
 
 #############################################################################
 BEGIN { ok(1, 'Start tests: ' . $PROGRAM_NAME); }

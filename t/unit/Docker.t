@@ -6,87 +6,159 @@
 # Pragmas and versioning
 use strict;
 use warnings;
-use version; our $VERSION = qv('0.0.1');
+use version; our $VERSION = version->declare('v0.0.1');
 use English qw( -no_match_vars );
 
 #############################################################################
 # Standart, core modules
 use Test::More;
+use Test::Exception;
 use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
 use Readonly;
+use Clone qw{ clone };
+use List::Util qw { first };
+
+Readonly my $TOP_RES => [
+    dummy => {
+        Processes => [ 'PID', 'PPID', 'PPPID', 'PPPPID', 'command2check' ],
+    },
+];
+
+$Data::Dumper::Indent    = 0;
+$Data::Dumper::Useqq     = 1;
+$Data::Dumper::Terse     = 1;
+$Data::Dumper::Deepcopy  = 1;
+$Data::Dumper::Quotekeys = 0;
+$Data::Dumper::Pair      = q{=>};
+$Data::Dumper::Sortkeys  = 1;
 
 #############################################################################
-# Our own modules (Mocking and Virualization)
-# Mock external subroutines
-
-use Mocker
-# Modules list
-qw{
-    Log::Log4perl
-    Log::Log4perl::Level
+# Include mocker with mocked modules
+use Test::VirtualModule qw{
     LWP::UserAgent
     FakeResponse
     Eixo::Docker::Api
-},
-# Mock Log4perl at compile time
-[
-  'Log::Log4perl',
-  [ qw{ init init_once } ],
-  get_logger =>  sub {
-      return bless {} => 'Log::Log4perl';
-  },
-  [ qw{ level error debug info warn trace } ] =>
-#    sub { print STDERR '-'x 80 . "\n" . Dumper @_; return 1; },
-],
-[
-  'Log::Log4perl::Level',
-  [ qw{ to_priority } ] => sub { return 1; },
-];
+    FakeContainer
+};
+
+#############################################################################
+ok(1, 'Start tests: ' . $PROGRAM_NAME);
+use_ok('Ardoman::Docker', qw{});
 
 #############################################################################
 # Mock some subroutines at run time
-MOCK(
-  [
+Test::VirtualModule->mock_sub(
     'LWP::UserAgent',
-    get => sub { return bless {}, 'FakeResponse' },
-  ],
-  [
-    'FakeResponse',
-    is_error => sub { return 0 },
-  ],
-  [
-    'Eixo::Docker::Api',
     new => sub { return bless {}, shift },
-    containers => sub { return shift },
-    [ qw{ get getByName } ] => sub { return shift },
-    [ qw{ create delete start stop } ] =>
-        sub { return 1 },
-    top => sub { return 1 },
-  ],
+    get => sub { return bless {}, 'FakeResponse' },
 );
 
-#############################################################################
-BEGIN { ok(1, 'Start tests: ' . $PROGRAM_NAME); }
+Test::VirtualModule->mock_sub(
+    'FakeResponse', # Instead HTTP::Response
+    is_error => sub { return 0 },
+);
+
+Test::VirtualModule->mock_sub(
+    'Eixo::Docker::Api',
+    new => sub { return bless {}, shift },
+    containers => sub { return bless { z => q{} }, 'FakeContainer' },
+);
+
+my $update_fake_cont = sub {
+    my $self   = shift;
+    my $caller = q{};
+    my $i      = 0;
+    while () {
+        $caller = (caller(++$i))[3];
+        if ($caller !~ /eval|ANON/smx) {
+            $self->{'z'} .= Dumper($caller, \@_). q{,{},};
+            return $self;
+        }
+    }
+};
+
+Test::VirtualModule->mock_sub(
+    'FakeContainer', # Instead Eixo::Docker::Container
+    create    => $update_fake_cont,
+    get       => $update_fake_cont,
+    getByName => $update_fake_cont,
+    delete    => $update_fake_cont,
+    start     => $update_fake_cont,
+    stop      => $update_fake_cont,
+
+    Id  => sub { return 1 },
+    top => sub { $update_fake_cont->(); return @{ clone($TOP_RES) } },
+
+    #    get => sub { return 1 },
+    #    getByName => sub { return 1 },
+    #    Id        => sub { return shift->{'c'} },
+    #    delete    => sub { return shift->{'c'} },
+    #    start     => sub { return shift->{'c'} },
+    #    stop      => sub { return shift->{'c'} },
+);
 
 #############################################################################
 # Start custom tests here
 
-BEGIN {
-  use_ok('Ardoman::Docker', qw{});
-}
-
 my $o;
 
-$o = Ardoman::Docker->new();
-isnt(ref($o) => 'Ardoman::Docker', 'Instance creation failure. Missing agrs.');
+throws_ok(
+    sub { $o = Ardoman::Docker->new() }, # "Forget" pass arguments
+    qr/not hash/,
+    'Instance creation fail successfully. Missing agrs.',
+);
 
-$o = Ardoman::Docker->new({});
-isnt(ref($o) => 'Ardoman::Docker', 'Instance creation failure. Empty hash.');
+delete local $ENV{'DOCKER_HOST'};
+throws_ok(
+    sub { $o = Ardoman::Docker->new({}) }, # "Forget" pass host
+    qr/missing host/,
+    'Instance creation fail successfully. Missing host.',
+);
 
-$o = Ardoman::Docker->new({host => 'localhost:2375'});
-is(ref($o) => 'Ardoman::Docker', 'Instance creation successful.');
+local $ENV{'DOCKER_HOST'} = 'foo';
+lives_ok(sub { $o = Ardoman::Docker->new({}) }, 'Instance created (ENV).');
+is(ref $o, 'Ardoman::Docker', 'Instance correct type (ENV).');
+
+delete local $ENV{'DOCKER_HOST'};
+lives_ok(sub { $o = Ardoman::Docker->new({ host => 'farfar:65536' }) },
+    'Instance created.');
+is(ref $o, 'Ardoman::Docker', 'Instance correct type');
+
+throws_ok(
+    sub { $o->deploy() }, # "Forget" pass arguments
+    qr/not hash/,
+    'Deploy fail successfully. Missing agrs.',
+);
+
+throws_ok(
+    sub { $o->deploy({}) }, # "Forget" pass image
+    qr/missing: image/,
+    'Deploy fail successfully. Missing Image.',
+);
+
+is( $o->deploy({ Image => 'hello' }),
+    1,
+    'Deploy successfully.'
+);
+
+throws_ok(
+    sub { $o->create() }, # "Forget" pass arguments
+    qr/not hash/,
+    'Create fail successfully. Missing agrs.',
+);
+
+throws_ok(
+    sub { $o->create({}) }, # "Forget" pass image
+    qr/missing: image/,
+    'Create fail successfully. Missing Image.',
+);
+
+is( $o->create({ Image => 'hello' }),
+    1,
+    'Create successfully.'
+);
 
 done_testing();
 

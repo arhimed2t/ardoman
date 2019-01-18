@@ -6,9 +6,11 @@ use warnings;
 use version; our $VERSION = version->declare('v0.0.1');
 
 use English qw( -no_match_vars );
+use Carp;
 use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
+
 use Readonly;
 use List::Util qw{ notall none pairgrep };
 
@@ -17,10 +19,7 @@ use List::Util qw{ notall none pairgrep };
 use Eixo::Docker::Api;
 use LWP::UserAgent qw{};
 
-use Carp;
-$Carp::Verbose = 1;
-
-Readonly my $DEFAULT_CHECK_DELAY = 3;
+Readonly my $DEFAULT_CHECK_DELAY => 3;
 Readonly my %ALLOWED => map { $_ => 1 }
     qw{ Image Name Env Cmd ExposedPorts HostConfig };
 
@@ -46,13 +45,13 @@ sub new {
     if (ref $ep_conf ne 'HASH') {
         croak('Wrong argument for constructor: not hash');
     }
-    if (!$ep_conf->{'host'}) {
+    if (!$ep_conf->{'host'} && !$ENV{'DOCKER_HOST'}) {
         croak('Cannot create constructor for API: missing host');
     }
 
     my $api;
     if (!eval { $api = Eixo::Docker::Api->new(%{$ep_conf}) }) {
-        c(sub { 'Creation API failure:' . Dumper $ep_conf });
+        croak("Creation API failure: $EVAL_ERROR\n" . Dumper $ep_conf);
     }
 
     $self->{'api'}  = $api;
@@ -74,13 +73,10 @@ sub new {
 sub deploy {
     my($self, $app_conf) = @_;
 
-    my $id = $self->create($app_conf);
-    $app_conf->{'Id'} = $id; # for quickness, but not in 'undeploy'
+    $app_conf->{'Id'} = $self->create($app_conf);
+    $app_conf->{'Id'} = $self->start($app_conf);
 
-    $self->start($app_conf);
-    $self->check($app_conf);
-
-    return $id;
+    return $self->check($app_conf);
 } # end sub deploy
 
 ################################ INTERFACE SUB ##############################
@@ -94,9 +90,12 @@ sub deploy {
 sub undeploy {
     my($self, $app_conf) = @_;
 
-    my $id = $self->stop($app_conf); # Here Id need for output only
-
-    $self->remove($app_conf);
+    my $id;
+    { # to prevent influence to final 'get' (check of lack)
+        $id = $self->stop($app_conf); # Here Id need for output only
+        local $app_conf->{'Id'} = $id;
+        $id = $self->remove($app_conf);
+    }
 
     # Note: here reverse logic
     croak('Application still running') if $self->get($app_conf, 'QUIET');
@@ -122,30 +121,29 @@ sub create {
 
     # We need check it here, in other cases we'll check it in _get
     croak('Not connected API')                if !$self->{'api'};
-    croak('Wrong app config: not a hash')     if ref $app_conf ne 'HASH';
+    croak('Wrong app config: not hash')       if ref $app_conf ne 'HASH';
     croak('Required argument missing: image') if !$app_conf->{'Image'};
 
     # Special case for 'ports'. OMG
     my(@ports, $cont_port, $host_port, $host_ip);
-    if (ref $arg_href->{'Ports'} eq 'ARRAY') {
-        foreach my $port (@{ $arg_href->{'Ports'} }) {
+    if (ref $app_conf->{'Ports'} eq 'ARRAY') {
+        foreach my $port (@{ $app_conf->{'Ports'} }) {
             @ports = split /:/smx, $port;
             $cont_port = pop @ports // q{};
             $host_port = pop @ports // q{};
             $host_ip   = pop @ports // q{};
 
             next if !$cont_port;
-            $arg_href->{'ExposedPorts'} = { $cont_port => {} };
-            $arg_href->{'HostConfig'}->{'PortBindings'} = { $cont_port =>
+            $app_conf->{'ExposedPorts'} = { $cont_port => {} };
+            $app_conf->{'HostConfig'}->{'PortBindings'} = { $cont_port =>
                     [ { 'HostIp' => $host_ip, 'HostPort' => $host_port } ] };
-        } # end foreach my $port (@{ $arg_href...})
-    } # end if (ref $arg_href->{'Ports'...})
+        } # end foreach my $port (@{ $app_conf...})
+    } # end if (ref $app_conf->{'Ports'...})
 
     my %new_conf = pairgrep { $ALLOWED{$a} } %{$app_conf};
 
-    my($cont, $handler);
-    $handler = $self->{'api'}->containers;
-    if (!eval { $cont = $handler->create(%new_conf) }) {
+    my $cont;
+    if (!eval { $cont = $self->{'api'}->containers->create(%new_conf) }) {
         croak("Error creating container: $EVAL_ERROR");
     }
     if (!$cont) {
@@ -226,7 +224,7 @@ sub get {
     my $cont = $self->_get($app_conf, $quiet);
 
     return if !$cont && $quiet; #  Just return false into 'undeploy'
-    
+
     return $cont->Id();
 }
 
@@ -244,7 +242,7 @@ sub check {
     my $cont = $self->_get($app_conf);
 
     # Since the processes need time to start, we will wait a little
-    sleep $app_conf->{'Check_delay'} // $DEFAULT_CHECK_DELAY;
+    sleep($app_conf->{'Check_delay'} // $DEFAULT_CHECK_DELAY);
 
     my @raw_top_results = ();
     if (!eval { # Need to suppress build-in output in this function
@@ -306,7 +304,7 @@ sub _get {
     # Validation section
     croak('Not connected API') if !$self->{'api'};
     croak('Wrong app config: not a hash') if ref $app_conf ne 'HASH';
-    if (!$app_conf->{'name'} && !$app_conf->{'Id'}) {
+    if (!$app_conf->{'Name'} && !$app_conf->{'Id'}) {
         croak('Required argument missing: "name" or "id"');
     }
 

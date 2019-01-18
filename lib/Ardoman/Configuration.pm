@@ -6,10 +6,10 @@ use warnings;
 use version; our $VERSION = version->declare('v0.0.1');
 
 use English qw( -no_match_vars );
+use Carp;
 use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
-use Carp;
 
 use File::Path qw{ make_path };
 use File::Spec;
@@ -34,20 +34,19 @@ sub new {
     my $self = bless { dir => undef }, $class;
 
     if ($root_conf_dir) {
+        $self->{'dir'} = $root_conf_dir;
+
         foreach my $type (@VALID_DIRS) {
             my $conf_dir = File::Spec->catdir($root_conf_dir, $type);
             if (!-d $conf_dir) {
                 make_path($conf_dir); # Make it recursively
             }
             if (!-d $conf_dir || !-w _) {
+                $self->{'dir'} = undef; # Disabe functionality
                 croak("Cannot work with confdir: $conf_dir");
             }
-        }
+        } # end foreach my $type (@VALID_DIRS)
     } # end if ($root_conf_dir)
-
-    if (-d $root_conf_dir && -w _) {
-        $self->{'dir'} = $root_conf_dir;
-    }
 
     return $self;
 } # end sub new

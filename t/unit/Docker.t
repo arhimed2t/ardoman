@@ -1,7 +1,5 @@
 #!/usr/bin/env perl
 
-# This module checked via percritic on BRUTAL TODO perltidy
-
 #############################################################################
 # Pragmas and versioning
 use strict;
@@ -66,30 +64,17 @@ Test::VirtualModule->mock_sub(
     containers => sub { return bless { z => q{} }, 'FakeContainer' },
 );
 
-my $update_fake_cont = sub {
-    my $self   = shift;
-    my $caller = q{};
-    my $i      = 0;
-    while () {
-        $caller = (caller(++$i))[3];
-        if ($caller !~ /eval|ANON/smx) {
-            $self->{'z'} .= Dumper($caller, \@_). q{,{},};
-            return $self;
-        }
-    }
-};
-
 Test::VirtualModule->mock_sub(
     'FakeContainer', # Instead Eixo::Docker::Container
-    create    => $update_fake_cont,
-    get       => $update_fake_cont,
-    getByName => $update_fake_cont,
-    delete    => $update_fake_cont,
-    start     => $update_fake_cont,
-    stop      => $update_fake_cont,
+    create    => sub { return shift },
+    get       => sub { return shift },
+    getByName => sub { return shift },
+    delete    => sub { return shift },
+    start     => sub { return shift },
+    stop      => sub { return shift },
 
     Id  => sub { return 1 },
-    top => sub { $update_fake_cont->(); return @{ clone($TOP_RES) } },
+    top => sub { return @{ clone($TOP_RES) } },
 
     #    get => sub { return 1 },
     #    getByName => sub { return 1 },
@@ -138,7 +123,7 @@ throws_ok(
     'Deploy fail successfully. Missing Image.',
 );
 
-is( $o->deploy({ Image => 'hello' }),
+is( $o->deploy({ Image => 'hello', Check_delay => 0 }),
     1,
     'Deploy successfully.'
 );

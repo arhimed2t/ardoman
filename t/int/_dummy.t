@@ -18,22 +18,10 @@ $Data::Dumper::Sortkeys = 1;
 use Readonly;
 
 #############################################################################
-# Our own modules (Mocking and Virualization)
-# Mock external subroutines
-
-
-#############################################################################
-# Mock some subroutines at run time
-
-#############################################################################
-BEGIN { ok(1, 'Start tests: ' . $PROGRAM_NAME); }
+ok(1, 'Start tests: ' . $PROGRAM_NAME);
 
 #############################################################################
 # Start custom tests here
-
-BEGIN {
-  #use_ok('module', qw{export list});
-}
 
 
 

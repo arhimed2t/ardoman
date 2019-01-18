@@ -126,22 +126,27 @@ This documentation refers to ardoman version 0.0.1.
         --save \
         --show \
         --endpoint localhost \
-        --application tomcat \
-        --name tomcat \
-        --image tomcat \
+        --application tomcat_7-jre8 \
+        --name tomcat0 \
+        --image tomcat:7-jre8 \
         --ports 8080:8080 \
         --check_proc java \
+        --check_proc tomcat \
         --check_delay 5 \
         --check_url http://127.0.0.1:8080/ \
+        --check_url http://127.0.0.1:8080/docs/ \
+        --check_url http://127.0.0.1:8080/examples/ \
         --action deploy
 
     PERL5LIB=lib bin/ardoman.pl \
         --confdir config \
         --endpoint localhost \
-        --application tomcat \
+        --application tomcat_7-jre8 \
         --name tomcat1 \
         --ports 8081:8080 \
         --check_url http://127.0.0.1:8081/ \
+        --check_url http://127.0.0.1:8081/docs/ \
+        --check_url http://127.0.0.1:8081/examples/ \
         --action deploy
 
 =head1 REQUIRED ARGUMENTS
@@ -600,12 +605,15 @@ This may mean such reasons (but not limited to):
 
 For unit test, use:
 
-    PERL5LIB=lib prove -r -v
+    DOCKER_HOST=localhost:2375 PERL5LIB=lib prove -r -v
 
 or one find of tests only
 
     PERL5LIB=lib prove -v t/unit 
-    PERL5LIB=lib prove -v t/func
+    DOCKER_HOST=localhost:2375 PERL5LIB=lib prove -v t/sys
+
+Note that for system tests you have set DOCKER_HOST to work docker for 
+system tests.
 
 In the case of debugging, you can specify parameter --debug that will enable
 $Carp::Verbose. This variable makes program generate stack backtraces.
@@ -677,6 +685,7 @@ docker's images:
 
     tutum/hello-world
     tomcat
+    tomcat:7-jre8
     glassfish
     alanpeng/oracle-weblogic11g
     subfuzion/netcat

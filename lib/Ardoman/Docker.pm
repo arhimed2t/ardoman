@@ -21,16 +21,6 @@ use Carp;
 $Carp::Verbose = 1;
 
 Readonly my $DEFAULT_CHECK_DELAY = 3;
-
-Readonly my %TRANSLATE => (
-    env   => 'Env',
-    cmd   => 'Cmd',
-    image => 'Image',
-    id    => 'Id',
-    name  => 'Name',
-    ports => 'Ports', # Be aware: It will be changed in special cases
-);
-
 Readonly my %ALLOWED => map { $_ => 1 }
     qw{ Image Name Env Cmd ExposedPorts HostConfig };
 
@@ -46,7 +36,6 @@ Readonly my %ALLOWED => map { $_ => 1 }
 #            : Eixo::Docker::Api errors (e.g. cannot connect to the endpoint)
 # Comments   : none
 # See Also   : https://metacpan.org/pod/Eixo::Docker
-
 sub new {
     my($class, $ep_conf) = @_;
     my $self = bless {
@@ -86,7 +75,7 @@ sub deploy {
     my($self, $app_conf) = @_;
 
     my $id = $self->create($app_conf);
-    $app_conf->{'id'} = $id; # for quickness, but not in 'undeploy'
+    $app_conf->{'Id'} = $id; # for quickness, but not in 'undeploy'
 
     $self->start($app_conf);
     $self->check($app_conf);
@@ -129,19 +118,12 @@ sub undeploy {
 # Comments   : none
 # See Also   : n/a
 sub create {
-    my($self, $raw_conf) = @_;
+    my($self, $app_conf) = @_;
 
     # We need check it here, in other cases we'll check it in _get
     croak('Not connected API')                if !$self->{'api'};
-    croak('Wrong app config: not a hash')     if ref $raw_conf ne 'HASH';
-    croak('Required argument missing: image') if !$raw_conf->{'image'};
-
-    my($app_conf, $new_key);
-    foreach my $old_key (keys %{$raw_conf}) {
-        next if !defined $app_conf->{$old_key};
-        $new_key = $TRANSLATE{$old_key};
-        $new_conf->{ $new_key || $old_key } = $raw_app_conf->{$old_key};
-    }
+    croak('Wrong app config: not a hash')     if ref $app_conf ne 'HASH';
+    croak('Required argument missing: image') if !$app_conf->{'Image'};
 
     # Special case for 'ports'. OMG
     my(@ports, $cont_port, $host_port, $host_ip);
@@ -262,7 +244,7 @@ sub check {
     my $cont = $self->_get($app_conf);
 
     # Since the processes need time to start, we will wait a little
-    sleep $app_conf->{'check_delay'} // $DEFAULT_CHECK_DELAY;
+    sleep $app_conf->{'Check_delay'} // $DEFAULT_CHECK_DELAY;
 
     my @raw_top_results = ();
     if (!eval { # Need to suppress build-in output in this function
@@ -285,17 +267,17 @@ sub check {
         croak('Empty process list. Nothing run?');
     }
 
-    if (ref $app_conf->{'check_proc'} eq 'ARRAY') {
-        foreach my $proc_re (@{ $app_conf->{'check_proc'} }) {
+    if (ref $app_conf->{'Check_proc'} eq 'ARRAY') {
+        foreach my $proc_re (@{ $app_conf->{'Check_proc'} }) {
             if (none { $_->[-1] =~ m/$proc_re/smx } @{$processes}) {
                 croak("Required process not found: $proc_re");
             }
         }
     }
 
-    if (ref $app_conf->{'check_url'} eq 'ARRAY') {
+    if (ref $app_conf->{'Check_url'} eq 'ARRAY') {
         my $ua = LWP::UserAgent->new();
-        foreach my $url (@{ $app_conf->{'check_url'} }) {
+        foreach my $url (@{ $app_conf->{'Check_url'} }) {
             my $response = $ua->get($url);
             if ($response->is_error()) {
                 croak('URL not response: ' . $response->as_string());
@@ -324,21 +306,21 @@ sub _get {
     # Validation section
     croak('Not connected API') if !$self->{'api'};
     croak('Wrong app config: not a hash') if ref $app_conf ne 'HASH';
-    if (!$app_conf->{'name'} && !$app_conf->{'id'}) {
+    if (!$app_conf->{'name'} && !$app_conf->{'Id'}) {
         croak('Required argument missing: "name" or "id"');
     }
 
     my $cont;
     my $handler = $self->{'api'}->containers;
-    if ($app_conf->{'id'}) {
-        if (!eval { $cont = $handler->get(id => $app_conf->{'id'}) }) {
-            croak("Container not found: $app_conf->{'id'}") if !$quiet;
+    if ($app_conf->{'Id'}) {
+        if (!eval { $cont = $handler->get(id => $app_conf->{'Id'}) }) {
+            croak("Container not found: $app_conf->{'Id'}") if !$quiet;
             return; # Otherwise return false to 'get', then 'undeploy'
         }
     }
-    elsif ($app_conf->{'name'}) {
-        if (!eval { $cont = $handler->getByName($app_conf->{'name'}) }) {
-            croak("Container not found: $app_conf->{'name'}") if !$quiet;
+    elsif ($app_conf->{'Name'}) {
+        if (!eval { $cont = $handler->getByName($app_conf->{'Name'}) }) {
+            croak("Container not found: $app_conf->{'Name'}") if !$quiet;
             return; # Otherwise return false to 'get', then 'undeploy'
         }
     }

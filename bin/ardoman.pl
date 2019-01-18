@@ -22,8 +22,8 @@ use Getopt::Euclid qw( :minimal_keys );
 Readonly my $DATA_KEYS => {
     endpoint    => [qw{ host tls_verify ca_file cert_file key_file }],
     application => [
-        qw{ image name id ports cmd env
-            check_proc check_url check_delay }
+        qw{ Image Name Id Ports Cmd Env
+            Check_proc Check_url Check_delay }
     ],
 };
 
@@ -37,6 +37,7 @@ my $application_name = $ARGV{'application'};
 
 #############################################################################
 # Start REAL work
+#############################################################################
 
 update_data(endpoint    => \%ARGV, $data->{'endpoint'});
 update_data(application => \%ARGV, $data->{'application'});
@@ -79,6 +80,10 @@ if ($api && $action && $api->can($action)) {
 exit 0;
 
 #    print "Done: $result\n"; ## no critic (InputOutput::RequireCheckedSyscalls)
+#############################################################################
+# END
+#############################################################################
+
 
 sub update_data {
     my($type, $source, $target) = @_;
@@ -139,49 +144,36 @@ This documentation refers to ardoman version 0.0.1.
 
 =over
 
-=item --confdir [=] <confdir>
+=item --action [=] <action> | --Action [=] <action>
+
+Action what need to do with application. Valid actions are:
+    deploy
+    undeploy
+    create
+    remove
+    start
+    stop
+    get
+    check
+
+Note configuration related commands ('--save', '--purge') do not affect 
+
+'--action' behavior and do not depend on '--action'.
+
+=item --confdir [=] <root_config_dir>
 
 Directory where is configuration files are located.
 Contains two directories 'endpoints' and 'applications' for different types
 of configs.
  
-=item  --endpoint [=] <conn>
-
-Name of connection setting to docker endpoint.
-Incorporates such option as:
-    host
-    tls_verify
-    ca_file
-    cert_file
-    key_file
-This also name for operating with saved configuration: save, load, purge.
-So it must be uniq, otherwise in save case endpoint options
-will be overwritten.
-
-=item --host [=] <host>
-
-Daemon socket(s) to connect to.
-Default to $ENV{DOCKER_HOST}
-
-=item --tls_verify
-
-Use TLS and verify the remote.
-Default to $ENV{DOCKER_TLS_VERIFY}
-
-=item --ca_file [=] <ca_file>
-
-Trust certs signed only by this CA.
-Path to ca cert file, default to $ENV{DOCKER_CERT_PATH}/ca.pem
-
-=item --cert_file [=] <cert_file>
-
-Path to TLS certificate file.
-Path to client cert file, default to $ENV{DOCKER_CERT_PATH}/cert.pem
-
-=item --key_file [=] <key_file>
+=item --key_file [=] <path_to_key_file>
 
 Path to TLS key file.
 Path to client key file, default to $ENV{DOCKER_CERT_PATH}/key.pem
+
+=item --show
+
+Command to show configurations before save/purge it and connect to endpoint.
 
 =item --save
 
@@ -191,79 +183,111 @@ Command to save endpoint's and application's configurations into database.
 
 Command to purge both configurations after use (or may be after save also).
 
-=item --show
+=item  --endpoint [=] <name_EP_config>
 
-Command to show configurations before connect to endpoint.
+Name of connection setting to docker endpoint.
+Incorporates such option as:
+    host
+    tls_verify
+    ca_file
+    cert_file
+    key_file
+This also name for operating with saved configuration: save, load, purge.
+So it must be uniq, otherwise in save case endpoint options 
+will be overwritten.
 
-=item --action [=] <action>
+=item --host [=] <host_port>
 
-action
+Daemon socket(s) to connect to.
+Default to $ENV{DOCKER_HOST}
 
-=item --ports [=] <ports>
+=item --tls_verify
 
-ports
+Use TLS and verify the remote.
+Default to $ENV{DOCKER_TLS_VERIFY}
+
+=item --ca_file [=] <path_to_ca_file>
+
+Trust certs signed only by this CA.
+Path to ca cert file, default to $ENV{DOCKER_CERT_PATH}/ca.pem
+
+=item --cert_file [=] <path_to_cert_file>
+
+Path to TLS certificate file.
+Path to client cert file, default to $ENV{DOCKER_CERT_PATH}/cert.pem
+
+=item --application [=] <application> | --Application [=] <application>
+
+Name of aggregate of container related options.
+With this name those option will be load/save/purge with corresponding 
+configuration related commands.
+
+Note all application related parameters have a sibling with
+capitalized first letter. 
+
+=item --name [=] <name> | --Name [=] <name>
+
+Assign the specified name to the container in case 'create' or 'deploy'.
+Or search container by name for other cases.
+
+=item --id [=] <id> | --Id [=] <id>
+
+A container's ID. Uses with commands except 'create' or 'deploy'.
+In this case argument '--name' may be omitted.
+
+=item --image [=] <image_name> | --Image [=] <image_name>
+
+The name of the image to use when creating the container.
+
+Note for commands 'create' or 'deploy' this option is necessary.
+
+=item --ports [=] <ports> | --Ports [=] <ports>
+
+Either specify both ports (HOST:CONTAINER), or just the container port,
+or maximum form (HOST_IP:HOST_PORT:CONTAINER_PORT).
+
+Exapmle:
+    - "3000"
+    - "8000:8000/tcp"
+    - "127.0.0.1:8001:8001"
 
 =for Euclid:
     repeatable
 
-=item --env [=] <env>
+=item --env [=] <env> | --Env [=] <env>
 
-ports
+A list of environment variables to set inside the container 
+in the form "VAR=value", ...
+
+This may be specified several times for different variables.
+
+    --env a=b --env c=d
 
 =for Euclid:
     repeatable
 
-=item --name [=] <name>
+=item --cmd [=] <cmd>... | --Cmd [=] <cmd>...
 
 name
 
-=item --id [=] <id>
-
-name
-
-=item --application [=] <application>
-
-name
-
-=item --image [=] <image>
-
-name
-
-=item --cmd [=] <cmd>...
-
-name
-
-=item --check_proc [=] <check_proc>
+=item --check_proc [=] <process_re> | --Check_proc [=] <process_re>
 
 name
 
 =for Euclid:
     repeatable
 
-=item --check_url [=] <check_url>
+=item --check_url [=] <fq_url> | --Check_url [=] <fq_url>
 
 name
 
 =for Euclid:
     repeatable
 
-
-=item --check_delay [=] <check_delay>
+=item --check_delay [=] <seconds> | --Check_delay [=] <seconds>
 
 =for Euclid:
     check_delay.type: integer
-
-name
-
-=item --debug
-
-name
-
-=item --log_level [=] <log_level>
-
-name
-
-=item --log_conffile [=] <log_conffile>
 
 name
 
@@ -276,19 +300,9 @@ May include numerous subsections (i.e., =head2, =head3, etc.).
 
 =head1 DIAGNOSTICS
 
-The program supports logging with Log::Log4perl. By default, logging is
-disabled. You can enable all log messages by setting the argument "--debug".
-
-You can also set a certain level of output messages with the argument
-"--log_level".  As a value, you should specify in the form of a string a real
-logging level used by Log::Log4perl.
-
-For more flexibility, you can specify the Log::Log4perl settings file with the
-"--log_confile" argument.
-
 For run test, use:
 
-    PERL5LIB=t/lib:lib:local/lib/perl5 prove -r -v
+    PERL5LIB=lib prove -r -v
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

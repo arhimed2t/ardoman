@@ -3,7 +3,7 @@ package Ardoman::Docker::API;
 use strict;
 use warnings;
 
-use version; our $VERSION = version->declare('v0.0.2');
+use version; our $VERSION = version->declare('v0.0.3');
 
 use English qw( -no_match_vars );
 use Carp;
@@ -14,20 +14,14 @@ $Data::Dumper::Sortkeys = 1;
 use Ardoman::Docker::Handler;
 use Ardoman::Docker::Container;
 
-$Carp::Verbose = 1; ## no critic (Variables::ProhibitPackageVars)
-
 ### CLASS METHOD ############################################################
-# Usage      : Ardoman::Docker->new( \%endpoint_configuration );
-# Purpose    : Create instance of this class
+# Usage      : Ardoman::Docker::API->new( \%endpoint_configuration );
+# Purpose    : Create instance of this class, and ability of EP
 # Returns    : Instance
-# Parameters :
-#            :
-#            :
-# Throws     :
-#            :
-#            :
-# Comments   :
-# See Also   :
+# Parameters : Accepts and passes unchanged args to Ardoman::Docker::Handler
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : Ardoman::Docker::Handler, Ardoman::Docker::Container
 sub new {
     my($class, @args) = @_;
 
@@ -45,15 +39,13 @@ sub new {
 sub containers { return shift }
 
 ################################ INTERFACE SUB ##############################
-# Usage      :
-# Purpose    :
-#            :
-#            :
-# Returns    :
-# Parameters :
-# Throws     :
-# Comments   :
-# See Also   :
+# Usage      : $o->version
+# Purpose    : Get version of API on the endpoint
+# Returns    : ApiVersion (in string form)
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub version {
     my($self) = @_;
 
@@ -63,15 +55,13 @@ sub version {
 }
 
 ################################ INTERFACE SUB ##############################
-# Usage      :
-# Purpose    :
-#            :
-#            :
-# Returns    :
-# Parameters :
-# Throws     :
-# Comments   :
-# See Also   :
+# Usage      : $o->get(id => $id)
+# Purpose    : Get container specified by Id
+# Returns    : Ardoman::Docker::Container instance
+# Parameters : Named arg $id with Id of container to be found
+# Throws     : Missing required argument $id
+# Comments   : none
+# See Also   : getByName
 sub get {
     my($self, %args) = @_;
 
@@ -91,16 +81,14 @@ sub get {
 } # end sub get
 
 ################################ INTERFACE SUB ##############################
-# Usage      :
-# Purpose    :
-#            :
-#            :
-# Returns    :
-# Parameters :
-# Throws     :
-# Comments   :
-# See Also   :
-sub getByName {
+# Usage      : $o->getByName($name)
+# Purpose    : Get container specified by Name
+# Returns    : Ardoman::Docker::Container instance
+# Parameters : Name of container to be found (unnamed, as string )
+# Throws     : Missing required parameter
+# Comments   : the name remains exactly the same for compatibility with Eixo
+# See Also   : get
+sub getByName { ## no critic (NamingConventions::Capitalization)
     my($self, $name) = @_;
 
     croak('Missing required argument name for getByName') if !$name;
@@ -118,6 +106,14 @@ sub getByName {
     return $cont;
 } # end sub getByName
 
+################################ INTERFACE SUB ##############################
+# Usage      : $o->create( %creaiton_arguments )
+# Purpose    : Create container on the EP with given parameters
+# Returns    : Ardoman::Docker::Container instance
+# Parameters : Set of paired parameters that are identical to EP query fields
+# Throws     : Missing required argument Image
+# Comments   : none
+# See Also   : n/a
 sub create {
     my($self, %args) = @_;
 

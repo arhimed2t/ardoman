@@ -3,7 +3,7 @@ package Ardoman::Configuration;
 use strict;
 use warnings;
 
-use version; our $VERSION = version->declare('v0.0.1');
+use version; our $VERSION = version->declare('v0.0.3');
 
 use English qw( -no_match_vars );
 use Carp;

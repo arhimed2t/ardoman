@@ -3,7 +3,7 @@ package Ardoman::Docker;
 use strict;
 use warnings;
 
-use version; our $VERSION = version->declare('v0.0.1');
+use version; our $VERSION = version->declare('v0.0.3');
 
 use English qw( -no_match_vars );
 use Carp;
@@ -30,9 +30,9 @@ Readonly my %ALLOWED => map { $_ => 1 }
 #            :   then therefore need 'ca_file' 'cert_file' 'key_file'
 # Throws     : wrong \%endpoint_configuration passed (e.g. not a hash)
 #            : missing required 'host' parameter
-#            : Eixo::Docker::Api errors (e.g. cannot connect to the endpoint)
+#            : Ardoman::Docker::API errors (e.g. cannot connect to the EP)
 # Comments   : none
-# See Also   : https://metacpan.org/pod/Eixo::Docker
+# See Also   : https://metacpan.org/pod/Eixo::Docker (legacy)
 sub new {
     my($class, $ep_conf) = @_;
     my $self = bless {
@@ -110,8 +110,8 @@ sub undeploy {
 # Throws     : Not connected API
 #            : Wrong \%application_config - not a hash
 #            : Required argument 'image' missing
-#            : Eixo::Docker::Api could not create container
-#            : Eixo::Docker::Api return wrong container (empty)
+#            : Ardoman::Docker::API could not create container
+#            : Ardoman::Docker::API return wrong container (empty)
 # Comments   : none
 # See Also   : n/a
 sub create {
@@ -161,7 +161,7 @@ sub create {
 # Purpose    : Remove previously created container
 # Returns    : Id of container
 # Parameters : ref to hash with one mandatory field either 'name' or 'id'
-# Throws     : Eixo::Docker::Api error
+# Throws     : Ardoman::Docker::API error
 # Comments   : none
 # See Also   : n/a
 sub remove {
@@ -180,7 +180,7 @@ sub remove {
 # Purpose    : Start previously created container
 # Returns    : Id of container
 # Parameters : ref to hash with one mandatory field either 'name' or 'id'
-# Throws     : Eixo::Docker::Api error
+# Throws     : Ardoman::Docker::API error
 # Comments   : none
 # See Also   : n/a
 sub start {
@@ -198,7 +198,7 @@ sub start {
 # Purpose    : Stop previously started container
 # Returns    : Id of container
 # Parameters : ref to hash with one mandatory field either 'name' or 'id'
-# Throws     : Eixo::Docker::Api error
+# Throws     : Ardoman::Docker::API error
 # Comments   : none
 # See Also   : n/a
 sub stop {
@@ -248,12 +248,7 @@ sub check {
     sleep($app_conf->{'Check_delay'} // $DEFAULT_CHECK_DELAY);
 
     my @raw_top_results = ();
-    if (!eval { # Need to suppress build-in output in this function
-            no warnings 'redefine'; ## no critic (TestingAndDebugging::ProhibitNoWarnings)
-            local *Eixo::Docker::Container::Dumper = sub { return };
-            @raw_top_results = $cont->top()
-        } ### end eval {...
-        ) {
+    if (!eval { @raw_top_results = $cont->top() }) {
         croak("Error checking container: $EVAL_ERROR");
     }
 
@@ -292,13 +287,13 @@ sub check {
 ############################################## INTERNAL UTILITY #############
 # Usage      : $o->_get( \%application_config [, $quiet_bool ])
 # Purpose    : Validate app_conf, search container and return it
-# Returns    : Eixo::Docker::Container instanse, (container object)
+# Returns    : Ardoman::Docker::Container instanse, (container object)
 # Parameters : ref to hash with one mandatory field either 'name' or 'id'
 #            :   optional $quiet suppres output and dieing (in case undeploy)
 # Throws     : If not connected to API by some resons
 #            : Wrong config, e.g. it is not reference to hash
 #            : Missing required argument (either of "name" or "id")
-#            : Eixo::Docker::API return empty instance
+#            : Ardoman::Docker::API return empty instance
 # Comments   : none
 # See Also   : n/a
 sub _get {

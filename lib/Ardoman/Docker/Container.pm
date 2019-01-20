@@ -3,7 +3,7 @@ package Ardoman::Docker::Container;
 use strict;
 use warnings;
 
-use version; our $VERSION = version->declare('v0.0.2');
+use version; our $VERSION = version->declare('v0.0.3');
 
 use English qw( -no_match_vars );
 use Carp;
@@ -11,20 +11,16 @@ use Data::Dumper;
 $Data::Dumper::Deepcopy = 1;
 $Data::Dumper::Sortkeys = 1;
 
-$Carp::Verbose = 1; ## no critic (Variables::ProhibitPackageVars)
-
 ### CLASS METHOD ############################################################
-# Usage      : Ardoman::Docker->new( \%endpoint_configuration );
-# Purpose    : Create instance of this class
+# Usage      : Ardoman::Docker::Container->new( $handler_inst, $id_of_cont );
+# Purpose    : Create instance of this class to apply container's commands
 # Returns    : Instance
-# Parameters :
-#            :
-#            :
-# Throws     :
-#            :
-#            :
-# Comments   :
-# See Also   :
+# Parameters : $handler_inst - ready to use handler to API (from parent)
+#            : $id_of_cont - Id of container to be modified
+# Throws     : Missed $handler_inst
+#            : Missed $id_of_cont
+# Comments   : none
+# See Also   : Ardoman::Docker::Handler, Ardoman::Docker::API
 sub new {
     my($class, $handler, $id) = @_;
 
@@ -40,31 +36,27 @@ sub new {
 } # end sub new
 
 ################################ INTERFACE SUB ##############################
-# Usage      :
-# Purpose    :
-#            :
-#            :
-# Returns    :
-# Parameters :
-# Throws     :
-# Comments   :
-# See Also   :
-sub Id {
+# Usage      : $o->Id()
+# Purpose    : Get ID of container assosiated with this instance
+# Returns    : Id of container as string
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : the name remains exactly the same for compatibility with Eixo
+# See Also   : n/a
+sub Id { ## no critic (NamingConventions::Capitalization)
     my($self) = @_;
 
     return $self->{'id'};
 }
 
 ################################ INTERFACE SUB ##############################
-# Usage      :
-# Purpose    :
-#            :
-#            :
-# Returns    :
-# Parameters :
-# Throws     :
-# Comments   :
-# See Also   :
+# Usage      : $o->start()
+# Purpose    : Start container assosiated with this instance
+# Returns    : $self
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub start {
     my($self) = @_;
 
@@ -75,15 +67,13 @@ sub start {
 }
 
 ################################ INTERFACE SUB ##############################
-# Usage      :
-# Purpose    :
-#            :
-#            :
-# Returns    :
-# Parameters :
-# Throws     :
-# Comments   :
-# See Also   :
+# Usage      : $o->stop()
+# Purpose    : Stop container assosiated with this instance
+# Returns    : $self
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub stop {
     my($self) = @_;
 
@@ -94,16 +84,14 @@ sub stop {
 }
 
 ################################ INTERFACE SUB ##############################
-# Usage      :
-# Purpose    :
-#            :
-#            :
-# Returns    :
-# Parameters :
-# Throws     :
-# Comments   :
-# See Also   :
-sub delete {
+# Usage      : $o->delete()
+# Purpose    : Delete container assosiated with this instance
+# Returns    : $self
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : the name remains exactly the same for compatibility with Eixo
+# See Also   : n/a
+sub delete { ## no critic (Subroutines::ProhibitBuiltinHomonyms)
     my($self) = @_;
 
     my $query = { id => $self->{'id'} };
@@ -113,15 +101,13 @@ sub delete {
 }
 
 ################################ INTERFACE SUB ##############################
-# Usage      :
-# Purpose    :
-#            :
-#            :
-# Returns    :
-# Parameters :
-# Throws     :
-# Comments   :
-# See Also   :
+# Usage      : $o->top
+# Purpose    : Return list of processes run in container assosiated ...
+# Returns    : Reference to a hash with 'top' struct in docker format
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : docs.docker.com/engine/api/v1.37/#operation/ContainerTop
 sub top {
     my($self) = @_;
 

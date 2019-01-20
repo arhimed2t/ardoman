@@ -4,7 +4,7 @@ ardoman - Arhimed's Docker Manager
 
 # VERSION
 
-This documentation refers to ardoman version 0.0.1.
+This documentation refers to ardoman version 0.0.3.
 
 # USAGE
 
@@ -368,6 +368,7 @@ Then start it:
         --application=glassfish --action=start
 
 And check processes and URLs:
+(wait some time, about 20 sec to let server start)
 
     PERL5LIB=lib bin/ardoman.pl \
         --confdir=config \
@@ -443,7 +444,7 @@ time to start. Add '--check\_delay=30'
         --check_proc java \
         --check_url http://127.0.0.1:7003/ \
         --env base_domain_default_password=123AAA456zzz \
-        --check_delay=30 \
+        --check_delay=60 \
         --action=deploy
 
 We'll get HTTP/1.1 404 Not Found which is not good.
@@ -513,11 +514,9 @@ deleted at the last stage, before exiting the program.
 # ENVIRONMENT
 
 You can also use environment variables to specify some parameters.
-Eixo::Docker::Api supports these environment variables:
+Ardoman::Docker::API supports these environment variables:
 
     DOCKER_HOST
-    DOCKER_TLS_VERIFY
-    DOCKER_CERT_PATH
 
 So you can even ommit mandatory parameter 'host':
 
@@ -528,11 +527,9 @@ So you can even ommit mandatory parameter 'host':
 
 This application uses these third party CPAN modules:
 
-    Eixo::Docker::Api
     Clone
     Readonly
     List::Util
-    Eixo::Docker::Api
     LWP::UserAgent
     File::Path
     File::Spec

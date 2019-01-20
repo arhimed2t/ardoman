@@ -14,9 +14,7 @@ $Data::Dumper::Sortkeys = 1;
 use Readonly;
 use List::Util qw{ notall none pairgrep };
 
-# Because I limited in total size of application I use
-# CPAN module to communicate with Docker API
-use Eixo::Docker::Api;
+use Ardoman::Docker::API;
 use LWP::UserAgent qw{};
 
 Readonly my $DEFAULT_CHECK_DELAY => 3;
@@ -50,7 +48,7 @@ sub new {
     }
 
     my $api;
-    if (!eval { $api = Eixo::Docker::Api->new(%{$ep_conf}) }) {
+    if (!eval { $api = Ardoman::Docker::API->new(%{$ep_conf}) }) {
         croak("Creation API failure: $EVAL_ERROR\n" . Dumper $ep_conf);
     }
 

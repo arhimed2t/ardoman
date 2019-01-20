@@ -8,10 +8,6 @@ This documentation refers to ardoman version 0.0.1.
 
 # USAGE
 
-\# Brief working invocation example(s) here showing the most common usage(s)
-\# This section will be as far as many users ever read,
-\# so make it as educational and exemplary as possible.
-
     PERL5LIB=lib bin/ardoman.pl \
         --host localhost:2375 \
         --confdir config \
@@ -211,7 +207,7 @@ are supported by Getopt::Euclid module. Thanks a lot.
             --action=deploy \
             --name=nc \
             --image='subfuzion/netcat' \
-            --cmd '-l' '0.0.0.0' '7777' \
+            --cmd '-l' '0.0.0.0' '5555' \
             --ports '5555:5555'
 
 - --check\_proc \[=\] &lt;process\_re> | --Check\_proc \[=\] &lt;process\_re>
@@ -408,7 +404,7 @@ And check that it is no longer available.
 Try to deploy WebLogicServer.
 
     DOCKER_HOST=127.0.0.1:2375 PERL5LIB=lib bin/ardoman.pl \
-        --debug
+        --debug \
         --name=wl1 \
         --image='alanpeng/oracle-weblogic11g' \
         --ports '8001:5556' \
@@ -424,7 +420,7 @@ Using 'docker logs wl' figure out that password required. So set '--env'
 and try to run again.
 
     DOCKER_HOST=127.0.0.1:2375 PERL5LIB=lib bin/ardoman.pl \
-        --debug
+        --debug \
         --name=wl2 \
         --image='alanpeng/oracle-weblogic11g' \
         --ports '8002:5556' \
@@ -439,7 +435,7 @@ But this not what we expect. It is because the server does not have
 time to start. Add '--check\_delay=30'
 
     DOCKER_HOST=127.0.0.1:2375 PERL5LIB=lib bin/ardoman.pl \
-        --debug
+        --debug \
         --name=wl3 \
         --image='alanpeng/oracle-weblogic11g' \
         --ports '8003:5556' \

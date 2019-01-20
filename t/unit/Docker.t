@@ -37,7 +37,7 @@ $Data::Dumper::Sortkeys  = 1;
 use Test::VirtualModule qw{
     LWP::UserAgent
     FakeResponse
-    Eixo::Docker::Api
+    Ardoman::Docker::API
     FakeContainer
 };
 
@@ -59,7 +59,7 @@ Test::VirtualModule->mock_sub(
 );
 
 Test::VirtualModule->mock_sub(
-    'Eixo::Docker::Api',
+    'Ardoman::Docker::API',
     new => sub { return bless {}, shift },
     containers => sub { return bless { z => q{} }, 'FakeContainer' },
 );
